@@ -1,0 +1,73 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - name: Prepare Android core
+        run: bash scripts/fetch-android-core.sh
+      - name: Build release APK and Play Store bundle
+        working-directory: android
+        run: ./gradlew assembleRelease bundleRelease
+      - name: Sign and verify APK and AAB
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/netcon-release.jks"
+          unsigned_apk="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          unsigned_aab="android/app/build/outputs/bundle/release/app-release.aab"
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$build_tools/zipalign" -p -f 4 "$unsigned_apk" "$RUNNER_TEMP/netcon-aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$RUNNER_TEMP/netcon-release.jks" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$RUNNER_TEMP/Netcon.apk" \
+            "$RUNNER_TEMP/netcon-aligned.apk"
+          "$build_tools/apksigner" verify --verbose "$RUNNER_TEMP/Netcon.apk"
+          jarsigner \
+            -keystore "$RUNNER_TEMP/netcon-release.jks" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            -digestalg SHA-256 \
+            -sigalg SHA256withRSA \
+            -signedjar "$RUNNER_TEMP/Netcon.aab" \
+            "$unsigned_aab" \
+            "$ANDROID_KEY_ALIAS"
+          jarsigner -verify -verbose "$RUNNER_TEMP/Netcon.aab"
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            ${{ runner.temp }}/Netcon.apk
+            ${{ runner.temp }}/Netcon.aab

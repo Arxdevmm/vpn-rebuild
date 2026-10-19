@@ -1,0 +1,24 @@
+# Netcon
+- [x] Prepare the app for PWABuilder: generated offline service worker with guarded preview-safe registration, complete manifest (orientation, categories, theme color) and real app screenshots; verified manifest, screenshots and preview guard, 21 tests pass
+
+- [x] Move SETTINGS above language selection; separate indicator lamps from lever tips with copper-on/dark-off states and matching Kill switch readout; verified all five switches and placement at 360px, 393px and desktop, 21 tests pass
+- [x] Rename network tab CONFIG; add collapsible SETTINGS dashboard with appearance, verified Artesys studio/contact links, About/version, guides and FAQs; verified English/Myanmar at 360px, 393px and desktop, all 21 tests pass
+- [x] Add English/Myanmar pill language selection and local translations without translating brands; verify all views and saved choice
+- [x] Match the live connection instrument panel to the shared machined-steel finish; verify phone and desktop controls
+- [x] Generate and inspect matching Android, iOS, web and Play Store icon assets; deliver a downloadable icon kit
+- [x] Clean logo transparency and matching favicon; inspected against light and dark surfaces
+- [x] Create five cohesive illustrated welcome screens, navigation and replay; completion persists locally
+- [x] Export five 1080×1920 portrait welcome artworks for future Play Store use; inspected all five artworks and welcome views, refined illustration/copy clearance
+- [x] Rename the client Netcon and generate, inspect, and apply a professional luxury communication logo with matching favicon; verified phone/desktop layouts and all 16 tests
+- [x] Instrument design and connection simulation
+- [x] Local URI parser, server imports, QR and configuration export
+- [x] Settings and diagnostics
+- [x] Intent recommendations and Gemini integration
+- [x] Verify parser and desktop/mobile flows
+- [x] Apply reference-inspired brushed plates and incised typography across all client views; verify readability and controls
+- [x] Add panel-mounted analog controls and verify switch states and connection flow
+- [x] Match supplied actual metal-panel designs with a straight copper title; verify all tabs and connection controls
+- [ ] Real Android tunnel, DNS/routing, Kill Switch and byte counters — blocked on an external native Android VPN service and device testing
+- [x] Live attributed FastNodes directory, country feeds, personal ratings, sorting, imports and source-error states; verified live browser flow and tests
+- [x] Typed external Android adapter contract and protection/counter acceptance requirements
+- [ ] Device-measured server latency and real meter readings — blocked on external Android VPN service and physical-device verification
