@@ -3,13 +3,13 @@ apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 def releaseVersionName = System.getenv("GITHUB_REF_NAME")?.replaceFirst("^v", "") ?: "1.0"
-def releaseVersionCode = 5 + (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+def releaseVersionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
 
 android {
     namespace = "com.artesys.netcon"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.artesys.netcon"
+        applicationId "com.artesys.netcon.client"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode releaseVersionCode
