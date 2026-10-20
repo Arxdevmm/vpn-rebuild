@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,10 +36,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,11 +59,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlin.math.cos
 import kotlin.math.sin
 import java.util.Locale
@@ -82,7 +91,7 @@ private enum class DashboardTab(val label: String) {
 }
 
 @Composable
-fun NetconDashboard(
+internal fun NetconDashboard(
     serverName: String,
     protocol: String,
     serverLocation: String,
@@ -92,6 +101,9 @@ fun NetconDashboard(
     feedback: String,
     onFeedbackDismiss: () -> Unit,
     onImport: (String) -> Boolean,
+    onFetchPublicNodes: suspend (String) -> NativePublicDirectory.Result,
+    onRecommend: suspend (String, String, List<NativePublicDirectory.Node>) -> NativeGeminiRecommender.Recommendation,
+    onSelectPublicNode: (NativePublicDirectory.Node) -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onBlockedProtocol: () -> Unit,
@@ -109,9 +121,13 @@ fun NetconDashboard(
     var serverDialog by rememberSaveable { mutableStateOf(false) }
     var locationDialog by rememberSaveable { mutableStateOf(false) }
     var purpose by rememberSaveable { mutableStateOf("") }
+    var apiKey by remember { mutableStateOf("") }
+    var recommendationMessage by remember { mutableStateOf("") }
+    var recommendationBusy by remember { mutableStateOf(false) }
     var dns by rememberSaveable { mutableStateOf("1.1.1.1") }
     var route by rememberSaveable { mutableStateOf("Bypass LAN") }
     var enabledProtocols by rememberSaveable { mutableStateOf(setOf("vless", "vmess", "trojan", "shadowsocks")) }
+    val coroutineScope = rememberCoroutineScope()
     val connected = vpnStatus.state == "connected"
     val connecting = vpnStatus.state == "connecting"
     val errorState = vpnStatus.state == "error"
@@ -122,6 +138,38 @@ fun NetconDashboard(
     )
     val downloadMbps = vpnStatus.downloadBytesPerSecond * 8 / 1_000_000
     val uploadMbps = vpnStatus.uploadBytesPerSecond * 8 / 1_000_000
+
+    fun askGemini() {
+        if (recommendationBusy) return
+        if (apiKey.isBlank()) {
+            recommendationMessage = "Enter your Gemini API key. It stays in this screen session."
+            return
+        }
+        if (Regex("(?i)^(vmess|vless|trojan|ss)://").containsMatchIn(purpose.trim())) {
+            recommendationMessage = "Paste configuration links into the local import field; credentials are never sent to Gemini."
+            return
+        }
+        recommendationBusy = true
+        recommendationMessage = "Loading public server metadata…"
+        coroutineScope.launch {
+            try {
+                val result = withTimeout(25_000) { onFetchPublicNodes("") }
+                if (result.nodes.isEmpty()) throw IllegalStateException("No supported public servers were found in the top feed.")
+                recommendationMessage = "Asking Gemini to choose from ${minOf(result.nodes.size, 30)} of ${result.nodes.size} untrusted public servers…"
+                val recommendation = withTimeout(25_000) {
+                    onRecommend(purpose.trim(), apiKey, result.nodes)
+                }
+                val selected = result.nodes.firstOrNull { it.id == recommendation.nodeId }
+                    ?: throw IllegalStateException("Gemini selected a server outside the downloaded list.")
+                onSelectPublicNode(selected)
+                recommendationMessage = "${recommendation.reason} Imported locally; not connected. Public servers are untrusted and unmeasured."
+            } catch (error: Exception) {
+                recommendationMessage = error.message ?: "Unable to get a Gemini recommendation."
+            } finally {
+                recommendationBusy = false
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -172,6 +220,11 @@ fun NetconDashboard(
                     DashboardTab.Connection -> ConnectionScreen(
                         purpose = purpose,
                         onPurposeChange = { purpose = it },
+                        apiKey = apiKey,
+                        onApiKeyChange = { apiKey = it },
+                        recommendationMessage = recommendationMessage,
+                        recommendationBusy = recommendationBusy,
+                        onAskGemini = ::askGemini,
                         serverName = serverName,
                         protocol = protocol,
                         serverLocation = serverLocation,
@@ -224,12 +277,15 @@ fun NetconDashboard(
     }
 
     if (serverDialog) {
-        ServerImportDialog(
+        PublicServerDialog(
             onDismiss = { serverDialog = false },
+            fetchNodes = onFetchPublicNodes,
+            onSelectNode = { node ->
+                onSelectPublicNode(node)
+                serverDialog = false
+            },
             onImport = { raw ->
-                if (onImport(raw)) {
-                    purpose = ""
-                }
+                if (onImport(raw)) serverDialog = false
             },
         )
     }
@@ -327,6 +383,11 @@ private fun DashboardNavigation(current: DashboardTab, onSelect: (DashboardTab) 
 private fun ConnectionScreen(
     purpose: String,
     onPurposeChange: (String) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    recommendationMessage: String,
+    recommendationBusy: Boolean,
+    onAskGemini: () -> Unit,
     serverName: String,
     protocol: String,
     serverLocation: String,
@@ -362,7 +423,7 @@ private fun ConnectionScreen(
                 RecessedInput(
                     value = purpose,
                     onValueChange = onPurposeChange,
-                    placeholder = "Type a purpose or paste a config link…",
+                    placeholder = "Describe your purpose, e.g. gaming or streaming",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("PUBG Mobile", "Facebook & IG", "YouTube 4K").forEach { label ->
@@ -374,9 +435,28 @@ private fun ConnectionScreen(
                         Keycap(label, Modifier.weight(1f), selected = purpose == label) { onPurposeChange(label) }
                     }
                 }
+                RecessedInput(
+                    value = apiKey,
+                    onValueChange = onApiKeyChange,
+                    placeholder = "Gemini API key · session only",
+                    secure = true,
+                )
+                CopperButton(
+                    if (recommendationBusy) "ASKING GEMINI…" else "ASK GEMINI · FIND FREE SERVER",
+                    Modifier.fillMaxWidth(),
+                    onClick = onAskGemini,
+                )
+                Text(
+                    "Never enter config links or credentials here. Gemini receives your purpose and public protocol/country metadata only; import links below for local parsing.",
+                    color = Engrave,
+                    fontSize = 8.sp,
+                )
+                if (recommendationMessage.isNotBlank()) {
+                    Text(recommendationMessage, color = if (recommendationBusy) CopperDark else Engrave, fontSize = 9.sp)
+                }
                 CopperButton("IMPORT CONFIG LINK", Modifier.fillMaxWidth()) { onImport(purpose.trim()) }
                 Text(
-                    "AI recommendations require the web client. Config links are parsed locally on Android.",
+                    "Free public servers are untrusted and unmeasured. Select or import one before connecting.",
                     color = Engrave,
                     fontSize = 9.sp,
                 )
@@ -578,21 +658,97 @@ private fun InfoScreen(serverName: String, protocol: String, state: String, onOp
 }
 
 @Composable
-private fun ServerImportDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
+private fun PublicServerDialog(
+    onDismiss: () -> Unit,
+    fetchNodes: suspend (String) -> NativePublicDirectory.Result,
+    onSelectNode: (NativePublicDirectory.Node) -> Unit,
+    onImport: (String) -> Unit,
+) {
     var raw by rememberSaveable { mutableStateOf("") }
+    var countryCode by rememberSaveable { mutableStateOf("") }
+    var search by rememberSaveable { mutableStateOf("") }
+    var countryMenu by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+    var nodes by remember { mutableStateOf(emptyList<NativePublicDirectory.Node>()) }
+    val scope = rememberCoroutineScope()
+    fun refresh() {
+        if (loading) return
+        loading = true
+        error = ""
+        scope.launch {
+            try {
+                val result = withTimeout(25_000) { fetchNodes(countryCode) }
+                nodes = result.nodes
+                error = "${result.nodes.size} supported · ${result.skipped} skipped${if (result.truncated) " · feed limited to 5,000 lines" else ""}"
+            } catch (cause: Exception) {
+                error = cause.message ?: "Public directory unavailable. Try another feed."
+            } finally {
+                loading = false
+            }
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(countryCode) { refresh() }
+    val visibleNodes = nodes.filter {
+        search.isBlank() || "${it.name} ${it.country} ${it.protocol}".contains(search, ignoreCase = true)
+    }.take(40)
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp))
                 .background(Brush.linearGradient(listOf(Color(0xFFADB3B9), Color(0xFF626A72), Color(0xFF383D43))))
-                .border(1.dp, Bevel, RoundedCornerShape(7.dp)).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .border(1.dp, Bevel, RoundedCornerShape(7.dp)).padding(16.dp)
+                .heightIn(max = 680.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Text("IMPORT SERVER", color = Engrave, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("Paste one VLESS, VMess, Trojan, Shadowsocks, or Xray JSON configuration. It is parsed on this device.", color = Engrave, fontSize = 10.sp)
-            RecessedInput(raw, { raw = it }, "vless://… or Xray JSON", minLines = 4)
+            Text("FREE PUBLIC SERVERS", color = Engrave, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("FastNodes · public community feed. Servers are untrusted, may be unavailable, and have unmeasured latency.", color = Offline, fontSize = 9.sp)
+            Box {
+                Keycap(
+                    if (countryCode.isEmpty()) "TOP FEED · UNKNOWN LOCATION" else "${Locale("", countryCode).displayCountry} · SOURCE-REPORTED",
+                    Modifier.fillMaxWidth(),
+                    onClick = { countryMenu = true },
+                )
+                DropdownMenu(expanded = countryMenu, onDismissRequest = { countryMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Top feed · unknown location") },
+                        onClick = { countryCode = ""; countryMenu = false },
+                    )
+                    NativePublicDirectory.countryCodes.forEach { code ->
+                        DropdownMenuItem(
+                            text = { Text("${Locale("", code).displayCountry} · source-reported") },
+                            onClick = { countryCode = code; countryMenu = false },
+                        )
+                    }
+                }
+            }
+            RecessedInput(search, { search = it }, "Search protocol or source location")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(if (loading) "Loading public feed…" else error, color = if (loading) CopperDark else Engrave, fontSize = 8.sp)
+                Keycap("REFRESH", onClick = ::refresh)
+            }
+            visibleNodes.forEach { node ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFF90979E), Color(0xFF737B83))))
+                        .border(1.dp, Bevel, RoundedCornerShape(4.dp)).padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(node.name, color = Engrave, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("${node.protocol.uppercase(Locale.ROOT)} · ${node.country} · UNTRUSTED · UNMEASURED", color = Engrave, fontSize = 7.sp)
+                    }
+                    Keycap("IMPORT", onClick = { onSelectNode(node) })
+                }
+            }
+            if (nodes.isEmpty() && !loading && error.isNotBlank()) {
+                Text("Try refreshing, selecting another country, or paste a server link below.", color = Engrave, fontSize = 9.sp)
+            }
+            Text("PASTE A SERVER LINK", color = Engrave, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            RecessedInput(raw, { raw = it }, "vless://, vmess://, trojan://, ss:// or Xray JSON", minLines = 3)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Keycap("CANCEL", Modifier.weight(1f), onClick = onDismiss)
-                CopperButton("SAVE SERVER", Modifier.weight(1f)) { onImport(raw.trim()) }
+                CopperButton("IMPORT LOCALLY", Modifier.weight(1f)) { onImport(raw.trim()) }
             }
         }
     }
@@ -732,6 +888,7 @@ private fun RecessedInput(
     placeholder: String,
     modifier: Modifier = Modifier,
     minLines: Int = 1,
+    secure: Boolean = false,
 ) {
     Box(
         modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
@@ -746,6 +903,7 @@ private fun RecessedInput(
             textStyle = androidx.compose.ui.text.TextStyle(color = Engrave, fontSize = 12.sp),
             minLines = minLines,
             cursorBrush = Brush.verticalGradient(listOf(Copper, CopperDark)),
+            visualTransformation = if (secure) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         )
     }
 }

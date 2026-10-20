@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -65,6 +67,13 @@ class MainActivity : ComponentActivity() {
                 feedback = feedback,
                 onFeedbackDismiss = { feedback = "" },
                 onImport = ::importConfiguration,
+                onFetchPublicNodes = { countryCode ->
+                    withContext(Dispatchers.IO) { NativePublicDirectory.fetch(countryCode) }
+                },
+                onRecommend = { purpose, apiKey, nodes ->
+                    NativeGeminiRecommender.recommend(purpose, apiKey, nodes)
+                },
+                onSelectPublicNode = ::selectPublicNode,
                 onConnect = {
                     if (savedConfig.isBlank()) {
                         feedback = "Import a server configuration before connecting."
@@ -130,24 +139,34 @@ class MainActivity : ComponentActivity() {
     private fun importConfiguration(raw: String): Boolean {
         return try {
             val imported = NativeXrayConfig.fromInput(raw)
-            savedConfig = imported.config.toString()
-            savedName = imported.name
-            serverLocation = ""
-            serverLatitude = null
-            serverLongitude = null
-            preferences.edit()
-                .putString("xray_config", savedConfig)
-                .putString("server_name", savedName)
-                .remove("server_location")
-                .remove("server_latitude")
-                .remove("server_longitude")
-                .apply()
+            saveServer(imported.config.toString(), imported.name, "")
             feedback = "Configuration saved on this device."
             true
         } catch (error: Exception) {
             feedback = error.message ?: "Invalid server configuration."
             false
         }
+    }
+
+    private fun selectPublicNode(node: NativePublicDirectory.Node) {
+        val country = node.countryCode?.let { "${node.country} · source-reported" }.orEmpty()
+        saveServer(node.configJson, node.name, country)
+        feedback = "Free public server imported. It is untrusted and has not been tested."
+    }
+
+    private fun saveServer(config: String, name: String, location: String) {
+        savedConfig = config
+        savedName = name
+        serverLocation = location
+        serverLatitude = null
+        serverLongitude = null
+        preferences.edit()
+            .putString("xray_config", savedConfig)
+            .putString("server_name", savedName)
+            .putString("server_location", serverLocation)
+            .remove("server_latitude")
+            .remove("server_longitude")
+            .apply()
     }
 
     private fun startVpn(config: String) {
