@@ -29,17 +29,18 @@
   --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 8px;
 }
 :root {
-  --background: oklch(0.135 0.008 270); --foreground: oklch(0.235 0.008 255);
-  --steel: oklch(0.308 0.011 255); --card: oklch(0.735 0.007 255); --bevel: oklch(0.492 0.02 255);
-  --shadow: oklch(0.172 0.009 255); --deep-ink: oklch(0.13 0.008 270);
-  --primary: oklch(0.643 0.117 48); --primary-foreground: oklch(0.18 0.02 48);
-  --copper-highlight: oklch(0.848 0.07 78); --copper-bevel: oklch(0.454 0.084 63); --copper-glow: oklch(0.795 0.102 71);
-  --secondary: oklch(0.70 0.007 255); --muted: oklch(0.66 0.007 255); --muted-foreground: oklch(0.365 0.01 255);
-  --accent: oklch(0.81 0.006 255); --border: oklch(0.54 0.012 255); --input: oklch(0.80 0.006 255);
-  --destructive: oklch(0.609 0.209 28); --online: oklch(0.673 0.162 145); --offline-border: oklch(0.699 0.088 88);
-  --plate-light: oklch(0.94 0.003 255); --plate-mid: oklch(0.76 0.007 255); --plate-shade: oklch(0.60 0.01 255);
-  --engrave-ink: oklch(0.235 0.008 255); --engrave-light: oklch(0.94 0.003 255); --engrave-copper: oklch(0.43 0.09 48);
-  --dial-label: oklch(0.76 0.012 255);
+  color-scheme: light;
+  --background: oklch(0.97 0.006 255); --foreground: oklch(0.24 0.012 255);
+  --steel: oklch(0.91 0.008 255); --card: oklch(0.99 0.003 255); --bevel: oklch(0.73 0.012 255);
+  --shadow: oklch(0.84 0.008 255); --deep-ink: oklch(0.31 0.012 255);
+  --primary: oklch(0.61 0.15 48); --primary-foreground: oklch(0.18 0.02 48);
+  --copper-highlight: oklch(0.93 0.07 78); --copper-bevel: oklch(0.47 0.09 54); --copper-glow: oklch(0.49 0.12 54);
+  --secondary: oklch(0.89 0.007 255); --muted: oklch(0.92 0.006 255); --muted-foreground: oklch(0.43 0.014 255);
+  --accent: oklch(0.94 0.006 255); --border: oklch(0.76 0.012 255); --input: oklch(0.94 0.005 255);
+  --destructive: oklch(0.55 0.19 28); --online: oklch(0.52 0.15 145); --offline-border: oklch(0.74 0.09 78);
+  --plate-light: oklch(0.995 0.002 255); --plate-mid: oklch(0.95 0.006 255); --plate-shade: oklch(0.82 0.01 255);
+  --engrave-ink: oklch(0.24 0.012 255); --engrave-light: oklch(0.99 0.003 255); --engrave-copper: oklch(0.42 0.09 48);
+  --dial-label: oklch(0.40 0.014 255);
   --brush-grain: repeating-linear-gradient(0deg, color-mix(in oklch, var(--plate-light) 10%, transparent) 0px, transparent 1px, color-mix(in oklch, var(--shadow) 5%, transparent) 2px, transparent 3px);
   --metal-gradient: var(--brush-grain), linear-gradient(100deg, var(--plate-shade), var(--plate-light) 19%, var(--plate-mid) 35%, var(--plate-light) 53%, var(--plate-mid) 73%, var(--plate-shade));
   --tray-gradient: var(--brush-grain), linear-gradient(100deg, var(--plate-shade), var(--plate-mid) 23%, var(--plate-light) 50%, var(--plate-mid) 76%, var(--plate-shade));
@@ -57,6 +58,18 @@ button, input, select, textarea { font: inherit; } button { -webkit-tap-highligh
 .ambient-metal { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .07; pointer-events: none; }
 .outer-brand, .below-chassis { position: relative; max-width: 904px; margin: 0 auto; display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); color: var(--muted-foreground); }
 .outer-brand { margin-bottom: 23px; font-size: 13px; font-weight: 500; }
+.brand-heading { width: auto !important; margin: 0; color: inherit; text-shadow: none; line-height: 1; }
+.brand-card { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 18px 8px 9px; border: 1px solid transparent; border-radius: 14px; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #f0d7c5, #e5dcf7, #d2e9f3, #d5ecdf, #f2e7c9) border-box; box-shadow: 0 5px 16px color-mix(in oklch, var(--deep-ink) 10%, transparent); animation: brand-card-glow 4.8s ease-in-out infinite; }
+.brand-card::before { position: absolute; z-index: -1; inset: -5px; border-radius: inherit; background: linear-gradient(110deg, #e9c9ae, #d8cdf0, #bfdfeb, #c4e5d4, #e9d9ab); content: ''; filter: blur(11px); opacity: .38; animation: brand-card-aura 4.8s ease-in-out infinite; }
+.brand-card-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; background: linear-gradient(145deg, #fff8f1, #f2efff 54%, #edf8fa); color: var(--engrave-copper); }
+.brand-card-icon svg { width: 21px; height: 21px; stroke-width: 2; }
+.brand-card-name { color: var(--engrave-ink); font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: -.04em; }
+.brand-card.compact { min-height: 44px; gap: 8px; padding: 5px 12px 5px 6px; border-radius: 11px; }
+.brand-card.compact .brand-card-icon { width: 30px; height: 30px; border-radius: 8px; }
+.brand-card.compact .brand-card-icon svg { width: 17px; height: 17px; }
+.brand-card.compact .brand-card-name { font-size: 19px; }
+@keyframes brand-card-glow { 50% { box-shadow: 0 6px 22px color-mix(in oklch, #d9c5eb 30%, transparent); } }
+@keyframes brand-card-aura { 50% { opacity: .68; transform: scale(1.025); } }
 .brand-mark { display: grid; place-items: center; color: var(--primary); width: 31px; height: 31px; border: 1px solid var(--copper-bevel); border-radius: 5px; background: var(--shadow); }
 .outer-brand-rule { height: 1px; flex: 1; background: var(--border); opacity: .5; }
 .micro-label { font-family: var(--font-mono); font-size: 9px; font-weight: 400; color: var(--muted-foreground); }
@@ -148,6 +161,18 @@ h1 { font-weight: 800; font-size: 29px; color: var(--engrave-copper); text-shado
 @media (max-width: 380px) { .client-stage { padding: 14px 7px; }.client-chassis { padding-left: 13px; padding-right: 13px; }h1 { font-size: 23px; }.logo-key { width: 33px; height: 36px; }.power-housing { width: 98px; height: 98px; }.ai-heading .micro-label { display: none; }.instrument-label { font-size: 6px; }.chassis-footer { margin: 0 -9px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 
+.welcome-screen { --welcome-shade: linear-gradient(180deg, color-mix(in oklch, #111827 48%, transparent), transparent 22%, transparent 44%, color-mix(in oklch, #111827 94%, transparent) 67%, #111827); background: #111827; }
+.welcome-skip, .welcome-back { color: white; }
+.welcome-skip:hover, .welcome-back:hover { color: white; }
+@media (max-width: 700px) {
+  .brand-card { min-height: 49px; gap: 9px; padding: 6px 13px 6px 7px; border-radius: 12px; }
+  .brand-card-icon { width: 34px; height: 34px; border-radius: 9px; }
+  .brand-card-name { font-size: 21px; }
+  .welcome-header .brand-card { min-height: 42px; }
+  .welcome-header .brand-card-icon { width: 28px; height: 28px; }
+  .welcome-header .brand-card-name { font-size: 18px; }
+}
+
 .server-flag svg { width: 30px; height: 20px; border-radius: 2px; }
 /* Panel-mounted switches: recess, hinge, and independently lit state. */
 .nav-key, .keycap, .copper-button, .import-options button { border-radius: 3px; border-width: 2px; border-color: var(--shadow); border-bottom-color: var(--bevel); box-shadow: inset 0 2px 0 var(--plate-light), inset 0 -3px 0 var(--bevel), 0 0 0 2px var(--plate-mid), 0 0 0 4px var(--shadow), 0 3px 4px var(--shadow); transition: transform 120ms, box-shadow 120ms; }
@@ -213,8 +238,7 @@ h1 { font-weight: 800; font-size: 29px; color: var(--engrave-copper); text-shado
 .chassis-texture { opacity: .2; mix-blend-mode: luminosity; }
 .client-header { flex-direction: column; gap: 28px; padding: 18px 0 26px; }
 .client-identity { justify-content: center; width: 100%; }
-.client-header .netcon-heading { width: min(100%, 530px); display: block; line-height: 0; }
-.netcon-logo { display: block; width: 100%; height: auto; aspect-ratio: 1387 / 353; object-fit: contain; }
+.client-header .brand-heading { display: block; }
 .client-header h1 { font-family: var(--font-display); font-size: 64px; font-weight: 800; line-height: 1.15; color: var(--primary); text-shadow: var(--title-relief); transform: none; font-style: normal; white-space: nowrap; }
 .status-badge { background: var(--tray-gradient); border: 2px solid var(--shadow); border-radius: 28px; min-width: 180px; justify-content: center; color: var(--engrave-ink); font-family: var(--font-display); font-size: 18px; font-weight: 700; text-shadow: var(--incised-shadow); box-shadow: inset 0 2px 3px var(--shadow), 0 1px 0 var(--plate-light); }
 .status-badge.connected, .status-badge.connecting { color: var(--engrave-ink); }
@@ -356,7 +380,7 @@ h1 { font-weight: 800; font-size: 29px; color: var(--engrave-copper); text-shado
 .welcome-art { object-fit: cover; top: -10%; }
 .welcome-shade { background: var(--welcome-shade); pointer-events: none; }
 .welcome-header { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 0; gap: 20px; }
-.welcome-header img { width: 165px; height: auto; }
+.welcome-header .brand-card { flex-shrink: 0; }
 .welcome-skip, .welcome-back { color: var(--dial-label); }
 .welcome-skip:hover, .welcome-back:hover { background: var(--steel); color: var(--engrave-light); }
 .welcome-copy { position: relative; margin-top: auto; padding: 0 28px; }

@@ -71,16 +71,16 @@ import kotlin.math.cos
 import kotlin.math.sin
 import java.util.Locale
 
-private val DeepInk = Color(0xFF06070A)
-private val Shadow = Color(0xFF0E1013)
-private val Steel = Color(0xFF2C3035)
-private val Tray = Color(0xFF3F454C)
-private val Bevel = Color(0xFF5A626C)
-private val Copper = Color(0xFFC87547)
-private val CopperLight = Color(0xFFE8C99A)
-private val CopperDark = Color(0xFF7A4A1F)
-private val Engrave = Color(0xFF24282D)
-private val EngraveLight = Color(0xFF9AA1A8)
+private val DeepInk = Color(0xFFF5F6F8)
+private val Shadow = Color(0xFFEBEEF1)
+private val Steel = Color(0xFFE3E7EB)
+private val Tray = Color(0xFFF9FAFB)
+private val Bevel = Color(0xFFB8C0C8)
+private val Copper = Color(0xFFB65F32)
+private val CopperLight = Color(0xFFF0D7BC)
+private val CopperDark = Color(0xFF7A3D1B)
+private val Engrave = Color(0xFF252A30)
+private val EngraveLight = Color(0xFF68717B)
 private val Online = Color(0xFF4CAF50)
 private val Offline = Color(0xFFE53935)
 
@@ -176,7 +176,7 @@ internal fun NetconDashboard(
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(Steel, Color(0xFF181B1F), DeepInk),
+                    colors = listOf(Steel, Color(0xFFF0F2F4), DeepInk),
                     radius = 1250f,
                 ),
             ),
@@ -185,7 +185,7 @@ internal fun NetconDashboard(
             painter = painterResource(R.drawable.brushed_steel),
             contentDescription = null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().alpha(0.07f),
+            modifier = Modifier.fillMaxSize().alpha(0.025f),
         )
         Column(
             modifier = Modifier
@@ -205,12 +205,26 @@ internal fun NetconDashboard(
                     .padding(horizontal = 13.dp, vertical = 15.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Image(
-                    painter = painterResource(R.drawable.netcon_logo),
-                    contentDescription = "NETCON",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth(0.92f).aspectRatio(1387f / 353f),
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color.White, Color(0xFFF2ECFA), Color(0xFFEAF6F2)),
+                            ),
+                        )
+                        .border(1.dp, Bevel, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 18.dp, vertical = 11.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "AIV2Ray",
+                        color = Engrave,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                    )
+                }
                 Spacer(Modifier.height(9.dp))
                 StatusBadge(vpnStatus.state)
                 Spacer(Modifier.height(14.dp))
@@ -269,7 +283,7 @@ internal fun NetconDashboard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    EngravedText("NETCON / ENGINEERED FOR PRIVACY", 8)
+                    EngravedText("AIV2Ray / ENGINEERED FOR PRIVACY", 8)
                     EngravedText(if (connected) "XRAY CORE · ANDROID VPN" else "XRAY CORE · OFFLINE", 8)
                 }
             }

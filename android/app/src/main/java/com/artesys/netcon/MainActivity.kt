@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,8 +31,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(44, 48, 53)
-        window.navigationBarColor = android.graphics.Color.rgb(44, 48, 53)
+        window.statusBarColor = android.graphics.Color.rgb(245, 246, 248)
+        window.navigationBarColor = android.graphics.Color.rgb(245, 246, 248)
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         savedConfig = preferences.getString("xray_config", "") ?: ""
         savedName = preferences.getString("server_name", "") ?: ""
         serverLocation = preferences.getString("server_location", "") ?: ""

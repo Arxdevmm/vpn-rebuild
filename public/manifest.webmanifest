@@ -1,16 +1,16 @@
 {
   "id": "/",
-  "name": "Netcon",
-  "short_name": "Netcon",
-  "description": "Netcon — local VPN configuration and simulated connection control.",
+  "name": "AIV2Ray",
+  "short_name": "AIV2Ray",
+  "description": "AIV2Ray — local V2Ray configuration and Gemini recommendations.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "en",
   "dir": "ltr",
-  "background_color": "#2C3035",
-  "theme_color": "#2C3035",
+  "background_color": "#F5F6F8",
+  "theme_color": "#F5F6F8",
   "categories": ["utilities", "productivity"],
   "icons": [
     {
@@ -44,14 +44,14 @@
       "sizes": "393x714",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Netcon connection panel with AI server recommendation"
+      "label": "AIV2Ray connection panel with AI server recommendation"
     },
     {
       "src": "/screenshots/netcon-wide.jpg",
       "sizes": "1280x720",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Netcon desktop view of the connection instruments"
+      "label": "AIV2Ray desktop view of the connection instruments"
     }
   ]
 }

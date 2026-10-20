@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.artesys.netcon",
-  appName: "Netcon",
+  appName: "AIV2Ray",
   webDir: "android-dist",
 };
 
