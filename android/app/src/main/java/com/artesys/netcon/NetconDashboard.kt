@@ -583,7 +583,6 @@ private fun SettingsScreen(
     onOpenVpnSettings: () -> Unit,
     onExport: () -> Unit,
 ) {
-    var protocols by rememberSaveable { mutableStateOf(setOf("VLESS", "VMESS", "TROJAN", "SHADOWSOCKS")) }
     var dnsMenu by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
         SectionTitle("DEVICE & NETWORK")
