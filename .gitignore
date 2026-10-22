@@ -17,6 +17,7 @@ android/.gradle
 android/app/libs/*.aar
 android/local.properties
 android/app/release.keystore
+android/keys/
 *.jks
 *.keystore
 .vinxi
