@@ -1,6 +1,6 @@
 # Android app and GitHub releases
 
-The Android app uses a native Android screen and Android `VpnService` with the bundled Xray core. It does not load or package the web interface. The first native screen accepts one VLESS, VMess, Trojan, or Shadowsocks link at a time, as well as Xray JSON; parsing happens on-device. Imported configuration is stored in private app preferences with Android backup disabled. The app also accepts shared text and direct configuration links. Public-server browsing, QR scanning, and Gemini recommendations remain web-only.
+The Android app uses a native Jetpack Compose screen and Android `VpnService` with the bundled Xray core. It does not load a WebView or package the separate browser interface. The native app accepts one VLESS, VMess, Trojan, or Shadowsocks link at a time, as well as Xray JSON with one supported outbound tagged `proxy`; parsing happens on-device. Imported configuration is stored in private app preferences with Android backup disabled. The app also accepts shared text and direct configuration links. Public-server browsing, QR scanning, and Gemini recommendations remain web-only.
 
 ## Local Android project
 
@@ -12,7 +12,7 @@ cd android
 ./gradlew assembleDebug
 ```
 
-Install the debug APK from `android/app/build/outputs/apk/debug/app-debug.apk`. Run `./gradlew testDebugUnitTest` to run Android unit tests. No web build or Capacitor sync is part of Android packaging. To regenerate Android launcher assets after changing the shared icon, run `npm run android:assets`.
+Run `./gradlew testDebugUnitTest assembleDebug bundleDebug` to run the native parser tests and build debug APK/AAB artifacts. The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`; the AAB is written to `android/app/build/outputs/bundle/debug/app-debug.aab`. Both are debug-signed and are for testing, not Play Store publishing. No web build or Capacitor sync is part of Android packaging. To regenerate Android launcher assets after changing the shared icon, run `npm run android:assets`.
 
 ## Configure GitHub releases
 

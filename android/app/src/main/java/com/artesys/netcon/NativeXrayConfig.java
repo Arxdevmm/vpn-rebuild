@@ -1,11 +1,13 @@
 package com.artesys.netcon;
 
-import android.net.Uri;
-import android.util.Base64;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
@@ -18,11 +20,30 @@ final class NativeXrayConfig {
             throw new IllegalArgumentException("Paste a server link or Xray JSON configuration.");
         }
         String value = input.trim();
+        if (value.getBytes(StandardCharsets.UTF_8).length > 2_000_000) {
+            throw new IllegalArgumentException("The configuration exceeds the 2 MB size limit.");
+        }
         if (value.startsWith("{")) {
             JSONObject config = new JSONObject(value);
             JSONArray outbounds = config.optJSONArray("outbounds");
             if (outbounds == null || outbounds.length() == 0) {
                 throw new IllegalArgumentException("Xray JSON must contain at least one outbound.");
+            }
+            boolean hasProxy = false;
+            for (int index = 0; index < outbounds.length(); index++) {
+                JSONObject outbound = outbounds.optJSONObject(index);
+                if (outbound == null || !"proxy".equals(outbound.optString("tag"))) continue;
+                String protocol = outbound.optString("protocol").toLowerCase(Locale.ROOT);
+                if (!Arrays.asList("vless", "vmess", "trojan", "shadowsocks").contains(protocol)) {
+                    throw new IllegalArgumentException("Xray JSON must use a supported proxy outbound tagged \"proxy\".");
+                }
+                if (hasProxy) {
+                    throw new IllegalArgumentException("Xray JSON must contain only one proxy outbound tagged \"proxy\".");
+                }
+                hasProxy = true;
+            }
+            if (!hasProxy) {
+                throw new IllegalArgumentException("Xray JSON must contain a supported outbound tagged \"proxy\".");
             }
             return new ImportedServer(config, "Imported Xray configuration");
         }
@@ -83,17 +104,17 @@ final class NativeXrayConfig {
     }
 
     private static ImportedServer fromUrl(String link) throws Exception {
-        Uri uri = Uri.parse(link);
-        String protocol = "vless".equals(uri.getScheme()) ? "vless" : "trojan";
-        String address = uri.getHost();
+        URI uri = parseUri(link);
+        String protocol = "vless".equalsIgnoreCase(uri.getScheme()) ? "vless" : "trojan";
+        String address = unbracketHost(uri.getHost());
         int port = uri.getPort() < 1 ? 443 : uri.getPort();
-        String credential = Uri.decode(uri.getUserInfo() == null ? "" : uri.getUserInfo());
+        String credential = decode(uri.getRawUserInfo() == null ? "" : uri.getRawUserInfo());
         String network = query(uri, "type", "tcp");
         String security = query(uri, "security", "trojan".equals(protocol) ? "tls" : "none");
-        String fragment = uri.getFragment();
+        String fragment = uri.getRawFragment();
         String name = fragment == null || fragment.trim().isEmpty()
             ? protocol.toUpperCase(Locale.ROOT) + " server"
-            : Uri.decode(fragment);
+            : decode(fragment);
 
         requireEndpoint(address, credential, port);
         JSONObject params = new JSONObject();
@@ -129,7 +150,7 @@ final class NativeXrayConfig {
     private static ImportedServer fromShadowsocks(String link) throws Exception {
         String[] fragmentSplit = link.split("#", 2);
         String body = fragmentSplit[0];
-        String name = fragmentSplit.length == 2 ? Uri.decode(fragmentSplit[1]) : "Shadowsocks server";
+        String name = fragmentSplit.length == 2 ? decode(fragmentSplit[1]) : "Shadowsocks server";
         String authority = body.split("\\?", 2)[0];
         String expanded = authority;
         if (!authority.contains("@")) expanded = decodeBase64(authority);
@@ -141,8 +162,8 @@ final class NativeXrayConfig {
         if (!auth.contains(":")) auth = decodeBase64(auth);
         int separator = auth.indexOf(':');
         if (separator < 1) throw new IllegalArgumentException("The Shadowsocks link is missing its cipher or password.");
-        String method = Uri.decode(auth.substring(0, separator));
-        String password = Uri.decode(auth.substring(separator + 1));
+        String method = decode(auth.substring(0, separator));
+        String password = decode(auth.substring(separator + 1));
         if (!Arrays.asList(
             "aes-128-gcm", "aes-256-gcm", "chacha20-ietf-poly1305",
             "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm",
@@ -150,11 +171,11 @@ final class NativeXrayConfig {
         ).contains(method)) {
             throw new IllegalArgumentException("Unsupported Shadowsocks cipher.");
         }
-        if (body.contains("?plugin=")) {
+        if (hasQueryParameter(parseUri("ss://" + body), "plugin")) {
             throw new IllegalArgumentException("Shadowsocks plugins are not supported.");
         }
-        Uri hostUri = Uri.parse("https://" + endpoint);
-        String address = hostUri.getHost();
+        URI hostUri = parseUri("https://" + endpoint);
+        String address = unbracketHost(hostUri.getHost());
         int port = hostUri.getPort() < 1 ? 443 : hostUri.getPort();
         requireEndpoint(address, password, port);
         JSONObject server = new JSONObject().put("servers", new JSONArray().put(new JSONObject()
@@ -238,9 +259,52 @@ final class NativeXrayConfig {
                     .put("outboundTag", "direct"))));
     }
 
-    private static String query(Uri uri, String key, String fallback) {
-        String value = uri.getQueryParameter(key);
-        return value == null || value.trim().isEmpty() ? fallback : value;
+    private static URI parseUri(String link) {
+        try {
+            return new URI(link);
+        } catch (URISyntaxException error) {
+            throw new IllegalArgumentException("The server link is malformed.", error);
+        }
+    }
+
+    private static String query(URI uri, String key, String fallback) {
+        String rawQuery = uri.getRawQuery();
+        if (rawQuery == null) return fallback;
+        for (String parameter : rawQuery.split("&")) {
+            String[] pair = parameter.split("=", 2);
+            if (decode(pair[0]).equals(key)) {
+                String value = pair.length == 2 ? decode(pair[1]) : "";
+                return value.trim().isEmpty() ? fallback : value;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean hasQueryParameter(URI uri, String key) {
+        String rawQuery = uri.getRawQuery();
+        if (rawQuery == null) return false;
+        for (String parameter : rawQuery.split("&")) {
+            String[] pair = parameter.split("=", 2);
+            if (decode(pair[0]).equalsIgnoreCase(key)) return true;
+        }
+        return false;
+    }
+
+    private static String decode(String value) {
+        try {
+            return URLDecoder.decode(value.replace("+", "%2B"), "UTF-8");
+        } catch (UnsupportedEncodingException error) {
+            throw new IllegalStateException("UTF-8 decoding is unavailable.", error);
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("The server link contains invalid URL encoding.", error);
+        }
+    }
+
+    private static String unbracketHost(String host) {
+        if (host != null && host.startsWith("[") && host.endsWith("]")) {
+            return host.substring(1, host.length() - 1);
+        }
+        return host;
     }
 
     private static void requireEndpoint(String address, String credential, int port) {
@@ -259,13 +323,55 @@ final class NativeXrayConfig {
 
     private static String decodeBase64(String value) {
         String normalized = value.replace('-', '+').replace('_', '/').replaceAll("\\s", "");
-        int padding = (4 - normalized.length() % 4) % 4;
-        for (int i = 0; i < padding; i++) normalized += "=";
         try {
-            return new String(Base64.decode(normalized, Base64.DEFAULT), StandardCharsets.UTF_8);
+            int firstPadding = normalized.indexOf('=');
+            int padding;
+            if (firstPadding >= 0) {
+                padding = normalized.length() - firstPadding;
+                if (padding > 2 || normalized.length() % 4 != 0) {
+                    throw new IllegalArgumentException("Invalid Base64 padding.");
+                }
+                for (int index = firstPadding; index < normalized.length(); index++) {
+                    if (normalized.charAt(index) != '=') throw new IllegalArgumentException("Invalid Base64 padding.");
+                }
+            } else {
+                int remainder = normalized.length() % 4;
+                if (remainder == 1) throw new IllegalArgumentException("Invalid Base64 length.");
+                padding = (4 - remainder) % 4;
+                normalized += "=".repeat(padding);
+            }
+
+            ByteArrayOutputStream decoded = new ByteArrayOutputStream(normalized.length() / 4 * 3 - padding);
+            for (int index = 0; index < normalized.length(); index += 4) {
+                boolean finalBlock = index + 4 == normalized.length();
+                int a = base64Value(normalized.charAt(index));
+                int b = base64Value(normalized.charAt(index + 1));
+                char third = normalized.charAt(index + 2);
+                char fourth = normalized.charAt(index + 3);
+                if (a < 0 || b < 0 || (third == '=' && fourth != '=') || (!finalBlock && (third == '=' || fourth == '='))) {
+                    throw new IllegalArgumentException("Invalid Base64 data.");
+                }
+                int c = third == '=' ? 0 : base64Value(third);
+                int d = fourth == '=' ? 0 : base64Value(fourth);
+                if (c < 0 || d < 0) throw new IllegalArgumentException("Invalid Base64 data.");
+                int block = (a << 18) | (b << 12) | (c << 6) | d;
+                decoded.write((block >>> 16) & 0xff);
+                if (third != '=') decoded.write((block >>> 8) & 0xff);
+                if (fourth != '=') decoded.write(block & 0xff);
+            }
+            return new String(decoded.toByteArray(), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException error) {
             throw new IllegalArgumentException("The configuration link contains invalid Base64 data.", error);
         }
+    }
+
+    private static int base64Value(char character) {
+        if (character >= 'A' && character <= 'Z') return character - 'A';
+        if (character >= 'a' && character <= 'z') return character - 'a' + 26;
+        if (character >= '0' && character <= '9') return character - '0' + 52;
+        if (character == '+') return 62;
+        if (character == '/') return 63;
+        return -1;
     }
 
     static final class ImportedServer {

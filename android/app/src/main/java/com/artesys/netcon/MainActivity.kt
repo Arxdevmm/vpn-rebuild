@@ -1,9 +1,12 @@
 package com.artesys.netcon
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
+import android.os.Build
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -51,6 +54,26 @@ class MainActivity : ComponentActivity() {
                 }
                 pendingConfig = ""
             }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                val config = pendingConfig
+                pendingConfig = ""
+                if (config.isNotBlank()) {
+                    if (!granted) feedback = "Notifications are disabled; VPN status may be less visible."
+                    requestVpnPermissionAndStart(config, permissionLauncher)
+                }
+            }
+            fun startWithNotificationPermission(config: String) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    pendingConfig = config
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    requestVpnPermissionAndStart(config, permissionLauncher)
+                }
+            }
             NetconDashboard(
                 serverName = savedName,
                 protocol = protocolName(savedConfig),
@@ -81,26 +104,14 @@ class MainActivity : ComponentActivity() {
                     if (savedConfig.isBlank()) {
                         feedback = "Import a server configuration before connecting."
                     } else {
-                        val permissionIntent = VpnService.prepare(this)
-                        if (permissionIntent == null) {
-                            startVpn(savedConfig)
-                        } else {
-                            pendingConfig = savedConfig
-                            permissionLauncher.launch(permissionIntent)
-                        }
+                        startWithNotificationPermission(savedConfig)
                     }
                 },
                 onDisconnect = { disconnectVpn() },
                 onBlockedProtocol = { feedback = "Enable this server protocol in Settings before connecting." },
                 onStartConfigured = { dnsAddress, routingMode ->
                     val config = configuredXrayJson(savedConfig, dnsAddress, routingMode)
-                    val permissionIntent = VpnService.prepare(this)
-                    if (permissionIntent == null) {
-                        startVpn(config)
-                    } else {
-                        pendingConfig = config
-                        permissionLauncher.launch(permissionIntent)
-                    }
+                    startWithNotificationPermission(config)
                 },
                 onOpenVpnSettings = {
                     try {
@@ -184,6 +195,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestVpnPermissionAndStart(
+        config: String,
+        permissionLauncher: androidx.activity.compose.ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>,
+    ) {
+        val permissionIntent = VpnService.prepare(this)
+        if (permissionIntent == null) {
+            startVpn(config)
+        } else {
+            pendingConfig = config
+            permissionLauncher.launch(permissionIntent)
+        }
+    }
+
     private fun disconnectVpn() {
         startService(Intent(this, NetconVpnService::class.java).setAction(NetconVpnService.ACTION_DISCONNECT))
     }
@@ -191,8 +215,10 @@ class MainActivity : ComponentActivity() {
     private fun protocolName(config: String): String {
         if (config.isBlank()) return ""
         return try {
-            JSONObject(config).optJSONArray("outbounds")
-                ?.optJSONObject(0)
+            val outbounds = JSONObject(config).optJSONArray("outbounds")
+            (0 until (outbounds?.length() ?: 0))
+                .mapNotNull { outbounds?.optJSONObject(it) }
+                .firstOrNull { it.optString("tag") == "proxy" }
                 ?.optString("protocol")
                 ?.uppercase(Locale.ROOT)
                 ?: ""

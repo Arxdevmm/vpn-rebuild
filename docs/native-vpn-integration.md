@@ -1,6 +1,6 @@
 # Android VPN integration
 
-The Android app has a native Android screen, a foreground `VpnService`, and the Xray Android core. It imports VLESS, VMess, Trojan, and Shadowsocks links or Xray JSON locally, requests Android VPN consent, establishes an IPv4/IPv6 TUN, and starts Xray with the TUN file descriptor. The Android package has no WebView or bundled web assets; the website remains a separate browser app. The current native screen does not yet provide the website's public directory, QR scanning, ratings, settings dashboard, or Gemini recommendations.
+The Android app has a native Jetpack Compose screen, a foreground `VpnService`, and the Xray Android core. It imports VLESS, VMess, Trojan, and Shadowsocks links or Xray JSON locally, requests Android VPN consent, establishes an IPv4/IPv6 TUN, and starts Xray with the TUN file descriptor. The Android package has no WebView or bundled web assets; the website remains a separate browser app. Xray JSON imports need exactly one supported outbound tagged `proxy`, matching the native connection status and traffic-counter behavior. The current native screen does not yet provide the website's public directory, QR scanning, ratings, settings dashboard, or Gemini recommendations.
 
 This implementation has **not yet passed physical-device acceptance testing**. A successful Gradle build or Xray startup check is not proof that internet traffic is routed correctly or that DNS/IP leaks are prevented. Do not describe it as verified until the acceptance tests below pass on supported Android versions and networks.
 

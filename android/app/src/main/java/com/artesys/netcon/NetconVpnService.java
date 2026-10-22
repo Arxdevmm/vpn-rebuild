@@ -64,9 +64,17 @@ public final class NetconVpnService extends VpnService {
         public void run() {
             boolean failed = false;
             synchronized (LOCK) {
-                if ("connected".equals(state) && (coreController == null || !coreController.getIsRunning())) {
-                    setState("error", "Xray stopped unexpectedly. Traffic remains blocked until you disconnect.");
-                    failed = true;
+                if ("connected".equals(state)) {
+                    try {
+                        if (coreController == null || !coreController.getIsRunning()) {
+                            setState("error", "Xray stopped unexpectedly. Traffic remains blocked until you disconnect.");
+                            failed = true;
+                        }
+                    } catch (RuntimeException error) {
+                        android.util.Log.e("NetconVpnService", "Unable to verify Xray status.", error);
+                        setState("error", "Unable to verify Xray status. Traffic remains blocked until you disconnect.");
+                        failed = true;
+                    }
                 }
             }
             if (failed) {
@@ -134,7 +142,7 @@ public final class NetconVpnService extends VpnService {
         super.onDestroy();
     }
 
-    private void startTunnel(String configText) {
+    private synchronized void startTunnel(String configText) {
         try {
             Network underlyingNetwork = getUnderlyingNetwork();
             LinkProperties linkProperties = getSystemService(ConnectivityManager.class)
@@ -254,19 +262,21 @@ public final class NetconVpnService extends VpnService {
         return parsed.getHostAddress();
     }
 
-    private void stopTunnel() {
+    private synchronized void stopTunnel() {
         synchronized (LOCK) {
             if (coreController != null) {
                 try {
                     coreController.stopLoop();
-                } catch (Exception ignored) {
+                } catch (Exception error) {
+                    android.util.Log.w("NetconVpnService", "Unable to stop Xray cleanly.", error);
                 }
                 coreController = null;
             }
             if (vpnInterface != null) {
                 try {
                     vpnInterface.close();
-                } catch (Exception ignored) {
+                } catch (Exception error) {
+                    android.util.Log.w("NetconVpnService", "Unable to close the VPN interface cleanly.", error);
                 }
                 vpnInterface = null;
             }
@@ -344,7 +354,20 @@ public final class NetconVpnService extends VpnService {
         }
         long downloaded = 0;
         long uploaded = 0;
-        String sample = coreController.queryAllOutboundTrafficStats();
+        String sample;
+        try {
+            sample = coreController.queryAllOutboundTrafficStats();
+        } catch (RuntimeException error) {
+            downloadBytesPerSecond = 0;
+            uploadBytesPerSecond = 0;
+            android.util.Log.w("NetconVpnService", "Unable to sample Xray traffic counters.", error);
+            return;
+        }
+        if (sample == null) {
+            downloadBytesPerSecond = 0;
+            uploadBytesPerSecond = 0;
+            return;
+        }
         for (String item : sample.split(";")) {
             String[] fields = item.split(",");
             if (fields.length != 3 || !"proxy".equals(fields[0])) {
@@ -379,8 +402,8 @@ public final class NetconVpnService extends VpnService {
         }
         updateNotification("Starting VPN");
         Notification notification = buildNotification("Starting VPN");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
