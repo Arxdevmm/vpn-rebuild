@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
-def releaseVersionName = System.getenv("GITHUB_REF_NAME")?.replaceFirst("^v", "") ?: "1.0"
+def releaseVersionName = (System.getenv("RELEASE_VERSION_NAME") ?: System.getenv("GITHUB_REF_NAME"))?.replaceFirst("^v", "") ?: "1.0"
 def releaseVersionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
 
 android {
