@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        NetconVpnService.logDiagnostic("Application started")
         window.statusBarColor = android.graphics.Color.rgb(245, 246, 248)
         window.navigationBarColor = android.graphics.Color.rgb(245, 246, 248)
         window.decorView.systemUiVisibility =
@@ -48,8 +49,10 @@ class MainActivity : ComponentActivity() {
                 ActivityResultContracts.StartActivityForResult(),
             ) { result ->
                 if (result.resultCode == Activity.RESULT_OK && pendingConfig.isNotBlank()) {
+                    NetconVpnService.logDiagnostic("Android VPN permission granted")
                     startVpn(pendingConfig)
                 } else {
+                    NetconVpnService.logDiagnostic("Android VPN permission denied")
                     feedback = "Android VPN permission was not granted."
                 }
                 pendingConfig = ""
@@ -61,6 +64,7 @@ class MainActivity : ComponentActivity() {
                 pendingConfig = ""
                 if (config.isNotBlank()) {
                     if (!granted) feedback = "Notifications are disabled; VPN status may be less visible."
+                    NetconVpnService.logDiagnostic(if (granted) "Notification permission granted" else "Notification permission denied")
                     requestVpnPermissionAndStart(config, permissionLauncher)
                 }
             }
@@ -106,6 +110,17 @@ class MainActivity : ComponentActivity() {
                     } else {
                         startWithNotificationPermission(savedConfig)
                     }
+                },
+                onCopyLog = {
+                    NetconVpnService.logDiagnostic("Diagnostic log copied to clipboard")
+                    val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    clipboard.setPrimaryClip(
+                        android.content.ClipData.newPlainText(
+                            "Netcon diagnostic log",
+                            NetconVpnService.getDiagnosticLog(),
+                        ),
+                    )
+                    feedback = "Diagnostic log copied. Review it before sharing."
                 },
                 onDisconnect = { disconnectVpn() },
                 onBlockedProtocol = { feedback = "Enable this server protocol in Settings before connecting." },
@@ -154,9 +169,11 @@ class MainActivity : ComponentActivity() {
         return try {
             val imported = NativeXrayConfig.fromInput(raw)
             saveServer(imported.config.toString(), imported.name, "")
+            NetconVpnService.logDiagnostic("Configuration imported successfully")
             feedback = "Configuration saved on this device."
             true
         } catch (error: Exception) {
+            NetconVpnService.logDiagnostic("Configuration import failed (${error.javaClass.simpleName})")
             feedback = error.message ?: "Invalid server configuration."
             false
         }
@@ -185,12 +202,14 @@ class MainActivity : ComponentActivity() {
 
     private fun startVpn(config: String) {
         try {
+            NetconVpnService.logDiagnostic("VPN service start requested")
             val intent = Intent(this, NetconVpnService::class.java)
                 .setAction(NetconVpnService.ACTION_CONNECT)
                 .putExtra(NetconVpnService.EXTRA_CONFIG, config)
             ContextCompat.startForegroundService(this, intent)
             feedback = ""
         } catch (error: Exception) {
+            NetconVpnService.logDiagnostic("VPN service start failed (${error.javaClass.simpleName})")
             feedback = error.message ?: "Unable to start the Android VPN service."
         }
     }
@@ -199,6 +218,7 @@ class MainActivity : ComponentActivity() {
         config: String,
         permissionLauncher: androidx.activity.compose.ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>,
     ) {
+        NetconVpnService.logDiagnostic("Android VPN permission check started")
         val permissionIntent = VpnService.prepare(this)
         if (permissionIntent == null) {
             startVpn(config)
@@ -209,6 +229,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun disconnectVpn() {
+        NetconVpnService.logDiagnostic("VPN disconnect requested")
         startService(Intent(this, NetconVpnService::class.java).setAction(NetconVpnService.ACTION_DISCONNECT))
     }
 

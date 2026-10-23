@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -105,6 +106,7 @@ internal fun NetconDashboard(
     onRecommend: suspend (String, String, List<NativePublicDirectory.Node>) -> NativeGeminiRecommender.Recommendation,
     onSelectPublicNode: (NativePublicDirectory.Node) -> Unit,
     onConnect: () -> Unit,
+    onCopyLog: () -> Unit,
     onDisconnect: () -> Unit,
     onBlockedProtocol: () -> Unit,
     onStartConfigured: (String, String) -> Unit,
@@ -256,6 +258,7 @@ internal fun NetconDashboard(
                         onImport = { raw -> if (onImport(raw)) serverDialog = false },
                         onProtocolAllowed = { enabledProtocols.contains(protocol.lowercase(Locale.ROOT)) },
                         onConnect = onConnect,
+                        onCopyLog = onCopyLog,
                         onDisconnect = onDisconnect,
                         onBlockedProtocol = onBlockedProtocol,
                         onStartConfigured = { onStartConfigured(dns, route) },
@@ -420,6 +423,7 @@ private fun ConnectionScreen(
     onSetLocation: () -> Unit,
     onImport: (String) -> Unit,
     onConnect: () -> Unit,
+    onCopyLog: () -> Unit,
     onDisconnect: () -> Unit,
     onBlockedProtocol: () -> Unit,
     onDismissError: () -> Unit,
@@ -565,9 +569,12 @@ private fun ConnectionScreen(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            EngravedText("ZERO LOGS. ZERO COMPROMISE.", 7)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             EngravedText("LOCAL CONFIG PARSING", 7)
+            TextButton(onClick = onCopyLog) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                Text("COPY LOG", color = CopperDark, fontSize = 8.sp)
+            }
         }
     }
 }
