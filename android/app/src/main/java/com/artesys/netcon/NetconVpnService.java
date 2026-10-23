@@ -26,6 +26,10 @@ import org.json.JSONObject;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
+import java.util.Date;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +47,11 @@ public final class NetconVpnService extends VpnService {
     private static final String CHANNEL_ID = "netcon-vpn";
     private static final int NOTIFICATION_ID = 4182;
     private static final Object LOCK = new Object();
+    private static final Object DIAGNOSTIC_LOCK = new Object();
+    private static final int MAX_DIAGNOSTIC_LINES = 200;
+    private static final int MAX_DIAGNOSTIC_CHARS = 24_000;
+    private static final ArrayDeque<String> diagnosticLines = new ArrayDeque<>();
+    private static int diagnosticCharacterCount;
     private static volatile String state = "disconnected";
     private static volatile String errorMessage = "";
     private static volatile String sessionId = "";
@@ -86,9 +95,39 @@ public final class NetconVpnService extends VpnService {
         }
     };
 
+    public static void logDiagnostic(String message) {
+        if (message == null || message.trim().isEmpty()) return;
+        String safeMessage = message.replace('\n', ' ').replace('\r', ' ')
+            .replaceAll("(?i)(vless|vmess|trojan|ss)://\\S+", "$1://[redacted]")
+            .replaceAll("(?i)(\\\"?(?:password|passwd|uuid|userid|user|id|token|secret|authorization|privatekey)\\\"?\\s*[:=]\\s*\\\"?)[^\\s,\\\"}]+", "$1[redacted]");
+        if (safeMessage.length() > 2_000) safeMessage = safeMessage.substring(0, 2_000);
+        String entry = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date()) + " " + safeMessage;
+        synchronized (DIAGNOSTIC_LOCK) {
+            diagnosticLines.addLast(entry);
+            diagnosticCharacterCount += entry.length() + 1;
+            while (diagnosticLines.size() > MAX_DIAGNOSTIC_LINES || diagnosticCharacterCount > MAX_DIAGNOSTIC_CHARS) {
+                String removed = diagnosticLines.removeFirst();
+                diagnosticCharacterCount -= removed.length() + 1;
+            }
+        }
+    }
+
+    public static String getDiagnosticLog() {
+        synchronized (DIAGNOSTIC_LOCK) {
+            if (diagnosticLines.isEmpty()) return "No diagnostic events captured.";
+            StringBuilder log = new StringBuilder(diagnosticCharacterCount);
+            for (String entry : diagnosticLines) {
+                if (log.length() > 0) log.append('\n');
+                log.append(entry);
+            }
+            return log.toString();
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_DISCONNECT.equals(intent.getAction())) {
+            logDiagnostic("VPN service received disconnect request");
             mainHandler.removeCallbacks(healthCheck);
             worker.execute(() -> {
                 stopTunnel();
@@ -101,15 +140,18 @@ public final class NetconVpnService extends VpnService {
 
         String config = intent == null ? null : intent.getStringExtra(EXTRA_CONFIG);
         if (config == null || config.trim().isEmpty()) {
+            logDiagnostic("VPN service received an empty configuration");
             setState("error", "No saved VPN configuration is available.");
             stopSelf(startId);
             return START_NOT_STICKY;
         }
 
+        logDiagnostic("VPN service received connection request");
         setState("connecting", "");
         try {
             startForegroundCompat();
         } catch (RuntimeException error) {
+            logDiagnostic("Unable to start foreground service: " + diagnosticError(error));
             setState("error", safeMessage(error));
             stopSelf(startId);
             return START_NOT_STICKY;
@@ -144,6 +186,7 @@ public final class NetconVpnService extends VpnService {
 
     private synchronized void startTunnel(String configText) {
         try {
+            logDiagnostic("Starting Android VPN tunnel");
             Network underlyingNetwork = getUnderlyingNetwork();
             LinkProperties linkProperties = getSystemService(ConnectivityManager.class)
                 .getLinkProperties(underlyingNetwork);
@@ -187,18 +230,24 @@ public final class NetconVpnService extends VpnService {
             if (vpnInterface == null) {
                 throw new IllegalStateException("Android could not establish the VPN interface.");
             }
+            logDiagnostic("Android VPN interface established");
             setUnderlyingNetworks(new Network[] { underlyingNetwork });
 
             Seq.setContext(getApplicationContext());
             Libv2ray.initCoreEnv(getFilesDir().getAbsolutePath(), "");
+            logDiagnostic("Xray core initialized");
             CoreController controller = Libv2ray.newCoreController(new CoreCallbackHandler() {
                 @Override public long startup() { return 0; }
                 @Override public long shutdown() { return 0; }
-                @Override public long onEmitStatus(long statusCode, String message) { return 0; }
+                @Override public long onEmitStatus(long statusCode, String message) {
+                    logDiagnostic("Xray status " + statusCode + ": " + message);
+                    return 0;
+                }
             });
             synchronized (LOCK) {
                 coreController = controller;
             }
+            logDiagnostic("Starting Xray core with Android VPN interface");
             controller.startLoop(config.toString(), vpnInterface.getFd());
             if (!controller.getIsRunning()) {
                 throw new IllegalStateException("Xray did not start.");
@@ -216,6 +265,7 @@ public final class NetconVpnService extends VpnService {
                 state = "connected";
                 errorMessage = "";
             }
+            logDiagnostic("VPN connected; Xray is running");
             updateNotification("VPN active");
             mainHandler.removeCallbacks(healthCheck);
             mainHandler.postDelayed(healthCheck, 1000);
@@ -229,6 +279,7 @@ public final class NetconVpnService extends VpnService {
                 coreController = null;
             }
             String message = safeMessage(error);
+            logDiagnostic("VPN startup failed: " + diagnosticError(error));
             setState("error", message);
             if (vpnInterface != null) {
                 updateNotification("VPN blocked: " + message);
@@ -439,5 +490,20 @@ public final class NetconVpnService extends VpnService {
             return "The Android VPN tunnel failed to start.";
         }
         return message.length() > 180 ? message.substring(0, 180) : message;
+    }
+
+    private static String diagnosticError(Throwable error) {
+        StringBuilder details = new StringBuilder();
+        Throwable cause = error;
+        int depth = 0;
+        while (cause != null && depth < 5) {
+            if (depth > 0) details.append(" <- ");
+            details.append(cause.getClass().getSimpleName());
+            String message = cause.getMessage();
+            if (message != null && !message.trim().isEmpty()) details.append(": ").append(message);
+            cause = cause.getCause();
+            depth++;
+        }
+        return details.toString();
     }
 }

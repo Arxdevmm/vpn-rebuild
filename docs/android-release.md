@@ -37,4 +37,6 @@ git tag v1.0.4
 git push origin v1.0.4
 ```
 
+If a tag push does not start Actions, run **Android release** from the Actions tab with the existing tag as `release_tag`. The manual run checks out that tag and publishes the same signed artifacts.
+
 The release APK is signed for direct installation. Its version name comes from the tag, and its version code increments with each workflow run. Google Play distribution may require a separately configured Android App Bundle and Play signing.
