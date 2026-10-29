@@ -4,7 +4,7 @@ The Android app has a native Jetpack Compose screen, a foreground `VpnService`, 
 
 This implementation has **not yet passed physical-device acceptance testing**. A successful Gradle build or Xray startup check is not proof that internet traffic is routed correctly or that DNS/IP leaks are prevented. Do not describe it as verified until the acceptance tests below pass on supported Android versions and networks.
 
-The launcher presets are demonstration endpoints and cannot connect. Import a valid VLESS, VMess, Trojan, or Shadowsocks configuration. The native service currently accepts a literal DNS server IP; it does not support an HTTPS resolver URL. Latency is reported as unmeasured until a real device-side probe is implemented.
+The launcher presets are demonstration endpoints and cannot connect. Import a valid VLESS, VMess, Trojan, or Shadowsocks configuration. The native service currently accepts a literal DNS server IP; it does not support an HTTPS resolver URL. The built-in LAN-bypass route uses explicit RFC1918, IPv4 link-local, IPv6 ULA, and IPv6 link-local ranges, so it does not depend on a `geoip.dat` file. Imported custom Xray rules that refer to GeoIP/GeoSite data still require those data files in the core's data directory. Latency is reported as unmeasured until a real device-side probe is implemented.
 
 Configurations and credentials are saved only in the native app's private preferences, with Android backup disabled. Do not expose configs through public HTTP endpoints, logs, analytics, or AI requests. The UI polls service-confirmed state rather than treating a start request as a connected tunnel.
 

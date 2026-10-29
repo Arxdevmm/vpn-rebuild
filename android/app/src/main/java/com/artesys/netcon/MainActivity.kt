@@ -18,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
@@ -125,7 +124,7 @@ class MainActivity : ComponentActivity() {
                 onDisconnect = { disconnectVpn() },
                 onBlockedProtocol = { feedback = "Enable this server protocol in Settings before connecting." },
                 onStartConfigured = { dnsAddress, routingMode ->
-                    val config = configuredXrayJson(savedConfig, dnsAddress, routingMode)
+                    val config = NativeXrayConfig.configuredXrayJson(savedConfig, dnsAddress, routingMode)
                     startWithNotificationPermission(config)
                 },
                 onOpenVpnSettings = {
@@ -248,24 +247,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun configuredXrayJson(config: String, dnsAddress: String, routingMode: String): String {
-        val root = JSONObject(config)
-        root.put("dns", JSONObject().put("servers", JSONArray().put(dnsAddress)))
-        val routing = root.optJSONObject("routing") ?: JSONObject()
-        val rules = JSONArray()
-        if (routingMode == "Bypass LAN") {
-            rules.put(JSONObject()
-                .put("type", "field")
-                .put("ip", JSONArray().put("geoip:private"))
-                .put("outboundTag", "direct"))
-        } else if (routingMode == "Rule-based") {
-            val existing = routing.optJSONArray("rules")
-            if (existing != null) {
-                for (index in 0 until existing.length()) rules.put(existing.get(index))
-            }
-        }
-        routing.put("rules", rules)
-        root.put("routing", routing)
-        return root.toString()
-    }
 }
