@@ -48,6 +48,18 @@ final class NativeXrayConfig {
         return config.toString();
     }
 
+    static JSONObject androidTunInbound(String dnsAddress) throws Exception {
+        return new JSONObject()
+            .put("tag", "tun")
+            .put("port", 0)
+            .put("protocol", "tun")
+            .put("settings", new JSONObject()
+                .put("name", "netcon0")
+                .put("MTU", 1500)
+                .put("gateway", new JSONArray().put("10.64.0.1/30").put("fd64:64::1/126"))
+                .put("DNS", new JSONArray().put(dnsAddress)));
+    }
+
     static ImportedServer fromInput(String input) throws Exception {
         if (input == null || input.trim().isEmpty()) {
             throw new IllegalArgumentException("Paste a server link or Xray JSON configuration.");

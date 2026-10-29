@@ -61,6 +61,18 @@ public final class NativeXrayConfigTest {
     }
 
     @Test
+    public void androidTunInboundDoesNotRequirePrivilegedInterfaceLookup() throws Exception {
+        org.json.JSONObject inbound = NativeXrayConfig.androidTunInbound("1.1.1.1");
+        org.json.JSONObject settings = inbound.getJSONObject("settings");
+
+        assertEquals("tun", inbound.getString("protocol"));
+        assertEquals("netcon0", settings.getString("name"));
+        assertEquals(1500, settings.getInt("MTU"));
+        assertEquals("1.1.1.1", settings.getJSONArray("DNS").getString(0));
+        org.junit.Assert.assertFalse(settings.has("autoOutboundsInterface"));
+    }
+
+    @Test
     public void rejectsXrayJsonWithoutSupportedProxyOutbound() {
         assertThrows(IllegalArgumentException.class, () -> NativeXrayConfig.fromInput(
             "{\"outbounds\":[{\"protocol\":\"freedom\"}]}"));
