@@ -4,6 +4,7 @@ import android.app.Activity
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
 import android.os.Build
@@ -12,11 +13,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.Locale
@@ -26,7 +30,10 @@ class MainActivity : ComponentActivity() {
     private var savedConfig by mutableStateOf("")
     private var savedName by mutableStateOf("")
     private var feedback by mutableStateOf("")
+    private var googleEmail by mutableStateOf("")
+    private var authBusy by mutableStateOf(false)
     private var pendingConfig = ""
+    private var supabaseSession: NativeSupabaseAuth.Session? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,14 +82,29 @@ class MainActivity : ComponentActivity() {
                 serverName = savedName,
                 protocol = protocolName(savedConfig),
                 feedback = feedback,
+                googleEmail = googleEmail,
+                authBusy = authBusy,
                 onFeedbackDismiss = { feedback = "" },
                 onImport = ::importConfiguration,
                 onFetchPublicNodes = { countryCode ->
                     withContext(Dispatchers.IO) { NativePublicDirectory.fetch(countryCode) }
                 },
                 onRecommend = { purpose, apiKey, nodes ->
-                    NativeGeminiRecommender.recommend(purpose, apiKey, nodes)
+                    try {
+                        NativeGeminiRecommender.recommend(
+                            purpose,
+                            apiKey,
+                            getSupabaseAccessToken(),
+                            nodes,
+                        )
+                    } catch (error: NativeSupabaseAuth.SessionExpiredException) {
+                        supabaseSession = null
+                        googleEmail = ""
+                        throw error
+                    }
                 },
+                onGoogleSignIn = ::signInWithGoogle,
+                onGoogleSignOut = ::signOutGoogle,
                 onSelectPublicNode = ::selectPublicNode,
                 onConnect = {
                     if (savedConfig.isBlank()) {
@@ -137,12 +159,127 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
+        val callback = intent.data
+        if (callback?.scheme == "com.artesys.netcon.client" &&
+            callback.host == "auth" &&
+            callback.path == "/callback"
+        ) {
+            completeGoogleSignIn(callback)
+            return
+        }
         val shared = when (intent.action) {
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
             Intent.ACTION_VIEW -> intent.dataString
             else -> null
         }
         if (!shared.isNullOrBlank()) importConfiguration(shared.trim())
+    }
+
+    private fun signInWithGoogle() {
+        if (authBusy) return
+        if (BuildConfig.SUPABASE_URL.isBlank() || BuildConfig.SUPABASE_PUBLISHABLE_KEY.isBlank()) {
+            feedback = "Google sign-in is not configured in this build."
+            return
+        }
+        authBusy = true
+        feedback = "Opening Google sign-in…"
+        lifecycleScope.launch {
+            try {
+                val request = withContext(Dispatchers.IO) {
+                    NativeSupabaseAuth.createAuthorizationRequest(
+                        BuildConfig.SUPABASE_URL,
+                        BuildConfig.SUPABASE_PUBLISHABLE_KEY,
+                    )
+                }
+                preferences.edit().putString(PENDING_AUTH_VERIFIER, request.codeVerifier).apply()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(request.url)))
+                feedback = "Complete sign-in in your browser."
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                preferences.edit().remove(PENDING_AUTH_VERIFIER).apply()
+                feedback = error.message ?: "Unable to start Google sign-in."
+            } finally {
+                authBusy = false
+            }
+        }
+    }
+
+    private fun completeGoogleSignIn(callback: Uri) {
+        val verifier = preferences.getString(PENDING_AUTH_VERIFIER, "").orEmpty()
+        preferences.edit().remove(PENDING_AUTH_VERIFIER).apply()
+        val code = callback.getQueryParameter("code").orEmpty()
+        if (verifier.isBlank() || code.isBlank() || callback.getQueryParameter("error") != null) {
+            feedback = "Google sign-in was cancelled or could not be verified. Please try again."
+            return
+        }
+        authBusy = true
+        lifecycleScope.launch {
+            try {
+                val session = withContext(Dispatchers.IO) {
+                    NativeSupabaseAuth.exchangeAuthorizationCode(
+                        BuildConfig.SUPABASE_URL,
+                        BuildConfig.SUPABASE_PUBLISHABLE_KEY,
+                        code,
+                        verifier,
+                    )
+                }
+                supabaseSession = session
+                googleEmail = session.email.ifBlank { "Google account" }
+                feedback = "Signed in with Google."
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                supabaseSession = null
+                googleEmail = ""
+                feedback = error.message ?: "Unable to complete Google sign-in."
+            } finally {
+                authBusy = false
+            }
+        }
+    }
+
+    private fun signOutGoogle() {
+        val session = supabaseSession
+        supabaseSession = null
+        googleEmail = ""
+        preferences.edit().remove(PENDING_AUTH_VERIFIER).apply()
+        feedback = "Signed out on this device."
+        if (session != null) {
+            lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        NativeSupabaseAuth.revokeSession(
+                            BuildConfig.SUPABASE_URL,
+                            BuildConfig.SUPABASE_PUBLISHABLE_KEY,
+                            session,
+                        )
+                    }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    feedback = "Signed out on this device, but the remote session could not be revoked."
+                }
+            }
+        }
+    }
+
+    private suspend fun getSupabaseAccessToken(): String {
+        val current = supabaseSession
+            ?: throw IllegalStateException("Sign in with Google before requesting a recommendation.")
+        return try {
+            val refreshed = withContext(Dispatchers.IO) {
+                NativeSupabaseAuth.refreshIfNeeded(
+                    BuildConfig.SUPABASE_URL,
+                    BuildConfig.SUPABASE_PUBLISHABLE_KEY,
+                    current,
+                )
+            }
+            supabaseSession = refreshed
+            refreshed.accessToken
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            supabaseSession = null
+            googleEmail = ""
+            throw IllegalStateException("Your Google session expired. Sign in again.", error)
+        }
     }
 
     private fun importConfiguration(raw: String): Boolean {
@@ -224,4 +361,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private companion object {
+        const val PENDING_AUTH_VERIFIER = "supabase_pending_auth_verifier"
+    }
 }

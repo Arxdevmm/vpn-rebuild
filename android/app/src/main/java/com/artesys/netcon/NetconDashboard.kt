@@ -96,10 +96,14 @@ internal fun NetconDashboard(
     serverName: String,
     protocol: String,
     feedback: String,
+    googleEmail: String,
+    authBusy: Boolean,
     onFeedbackDismiss: () -> Unit,
     onImport: (String) -> Boolean,
     onFetchPublicNodes: suspend (String) -> NativePublicDirectory.Result,
     onRecommend: suspend (String, String, List<NativePublicDirectory.Node>) -> NativeGeminiRecommender.Recommendation,
+    onGoogleSignIn: () -> Unit,
+    onGoogleSignOut: () -> Unit,
     onSelectPublicNode: (NativePublicDirectory.Node) -> Unit,
     onConnect: () -> Unit,
     onCopyLog: () -> Unit,
@@ -138,11 +142,18 @@ internal fun NetconDashboard(
 
     fun askGemini() {
         if (recommendationBusy) return
+        if (googleEmail.isBlank()) {
+            recommendationMessage = "Sign in with Google before asking Gemini for a recommendation."
+            return
+        }
         if (apiKey.isBlank()) {
             recommendationMessage = "Enter your Gemini API key. It stays in this screen session."
             return
         }
-        if (Regex("(?i)^(vmess|vless|trojan|ss)://").containsMatchIn(purpose.trim())) {
+        if (purpose.trim().startsWith("{") || purpose.trim().startsWith("[") ||
+            Regex("(?i)(vmess|vless|trojan|ss)://|[\"']?(uuid|password|privateKey|alterId)[\"']?\\s*:")
+                .containsMatchIn(purpose.trim())
+        ) {
             recommendationMessage = "Paste configuration links into the local import field; credentials are never sent to Gemini."
             return
         }
@@ -236,6 +247,13 @@ internal fun NetconDashboard(
                         recommendationMessage = recommendationMessage,
                         recommendationBusy = recommendationBusy,
                         onAskGemini = ::askGemini,
+                        googleEmail = googleEmail,
+                        authBusy = authBusy,
+                        onGoogleSignIn = onGoogleSignIn,
+                        onGoogleSignOut = {
+                            apiKey = ""
+                            onGoogleSignOut()
+                        },
                         serverName = serverName,
                         protocol = protocol,
                         state = vpnStatus.state,
@@ -383,6 +401,10 @@ private fun ConnectionScreen(
     recommendationMessage: String,
     recommendationBusy: Boolean,
     onAskGemini: () -> Unit,
+    googleEmail: String,
+    authBusy: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onGoogleSignOut: () -> Unit,
     serverName: String,
     protocol: String,
     state: String,
@@ -411,6 +433,30 @@ private fun ConnectionScreen(
                     Spacer(Modifier.weight(1f))
                     EngravedText("LOCAL CONFIG ENGINE", 7)
                 }
+                if (googleEmail.isBlank()) {
+                    CopperButton(
+                        if (authBusy) "SIGNING IN…" else "SIGN IN WITH GOOGLE",
+                        Modifier.fillMaxWidth(),
+                        onClick = onGoogleSignIn,
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "GOOGLE · $googleEmail",
+                            color = Engrave,
+                            fontSize = 9.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = onGoogleSignOut) {
+                            Text("SIGN OUT", color = CopperDark, fontSize = 9.sp)
+                        }
+                    }
+                }
+                Text(
+                    "Google sign-in verifies your identity only; it does not provide Gemini API access. Your separate Gemini key stays in this screen session.",
+                    color = Engrave,
+                    fontSize = 8.sp,
+                )
                 Text("WHAT DO YOU WANT TO USE THE VPN FOR?", color = Engrave, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 RecessedInput(
                     value = purpose,
