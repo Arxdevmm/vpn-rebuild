@@ -1,5 +1,10 @@
 package com.artesys.netcon
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -52,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -170,7 +176,10 @@ internal fun NetconDashboard(
                 val selected = result.nodes.firstOrNull { it.id == recommendation.nodeId }
                     ?: throw IllegalStateException("Gemini selected a server outside the downloaded list.")
                 onSelectPublicNode(selected)
-                recommendationMessage = "${recommendation.reason} Imported locally; not connected. Public servers are untrusted and unmeasured."
+                dns = recommendation.dnsAddress
+                route = recommendation.routingMode
+                recommendationMessage =
+                    "${recommendation.reason} Imported locally. Suggested DNS ${recommendation.dnsAddress} and ${recommendation.routingMode} routing are selected in CONFIG; review before connecting. Public servers are untrusted and unmeasured."
             } catch (error: Exception) {
                 recommendationMessage = error.message ?: "Unable to get a Gemini recommendation."
             } finally {
@@ -213,26 +222,7 @@ internal fun NetconDashboard(
                     .padding(horizontal = 13.dp, vertical = 15.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color.White, Color(0xFFF2ECFA), Color(0xFFEAF6F2)),
-                            ),
-                        )
-                        .border(1.dp, Bevel, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 18.dp, vertical = 11.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "AIV2Ray",
-                        color = Engrave,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                }
+                BrandPlate()
                 Spacer(Modifier.height(9.dp))
                 StatusBadge(vpnStatus.state)
                 Spacer(Modifier.height(14.dp))
@@ -350,6 +340,91 @@ private fun StatusBadge(state: String) {
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
         )
+    }
+}
+
+@Composable
+private fun BrandPlate() {
+    val transition = rememberInfiniteTransition(label = "brand-plate")
+    val glow by transition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.42f,
+        animationSpec = infiniteRepeatable(tween(4800), RepeatMode.Reverse),
+        label = "brand-glow",
+    )
+    val wave by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(5800), RepeatMode.Restart),
+        label = "brand-wave",
+    )
+    val waveAlpha = when {
+        wave < 0.55f || wave >= 0.82f -> 0f
+        wave < 0.63f -> (wave - 0.55f) / 0.08f * 0.42f
+        else -> (1f - (wave - 0.63f) / 0.19f) * 0.42f
+    }.coerceIn(0f, 0.42f)
+    val waveScale = 0.94f + (wave - 0.55f).coerceIn(0f, 0.27f) / 0.27f * 0.14f
+    val brandGradient = Brush.linearGradient(
+        listOf(
+            Color(0xFFF0D7C5),
+            Color(0xFFE5DCF7),
+            Color(0xFFD2E9F3),
+            Color(0xFFD5ECDF),
+            Color(0xFFF2E7C9),
+        ),
+    )
+    val plateShape = RoundedCornerShape(14.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.92f)
+            .height(72.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(waveScale)
+                .alpha(waveAlpha)
+                .border(1.dp, brandGradient, RoundedCornerShape(24.dp)),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp)
+                .scale(1f + glow * 0.025f)
+                .alpha(glow * 0.35f)
+                .background(brandGradient, plateShape),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(plateShape)
+                .background(brandGradient)
+                .padding(1.dp)
+                .clip(plateShape)
+                .background(Brush.linearGradient(listOf(Color.White, Color(0xFFF2ECFA), Color(0xFFEAF6F2))))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFFFFF8F1), Color(0xFFF2EFFF), Color(0xFFEDF8FA)))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Star, contentDescription = null, tint = CopperDark, modifier = Modifier.size(25.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "AIV2Ray",
+                color = Engrave,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+            )
+        }
     }
 }
 
@@ -641,7 +716,7 @@ private fun SettingsScreen(
                         Keycap(value, Modifier.weight(1f), selected = route == value) { onRouteChange(value) }
                     }
                 }
-                Text("Kill switch is controlled by Android. DNS, routing, and protocol preferences are presentation-only until connected configuration editing is enabled.", color = Engrave, fontSize = 9.sp, modifier = Modifier.padding(top = 10.dp))
+                Text("DNS and routing choices are applied when you connect or reconnect. Android controls the VPN lockdown setting.", color = Engrave, fontSize = 9.sp, modifier = Modifier.padding(top = 10.dp))
             }
         }
         MetalPanel {

@@ -21,7 +21,9 @@ describe("same-origin Gemini recommendation service", () => {
             {
               content: {
                 parts: [
-                  { text: '{"serverId":"public-node","reason":"VLESS is a suitable option."}' },
+                  {
+                    text: '{"serverId":"public-node","dnsAddress":"1.1.1.1","routingMode":"Bypass LAN","reason":"VLESS is a suitable option."}',
+                  },
                 ],
               },
             },
@@ -34,6 +36,8 @@ describe("same-origin Gemini recommendation service", () => {
 
     await expect(generateServerRecommendation(request, false)).resolves.toEqual({
       serverId: "public-node",
+      dnsAddress: "1.1.1.1",
+      routingMode: "Bypass LAN",
       reason: "VLESS is a suitable option.",
     });
 
@@ -78,7 +82,37 @@ describe("same-origin Gemini recommendation service", () => {
             candidates: [
               {
                 content: {
-                  parts: [{ text: '{"serverId":"unknown-node","reason":"Not in list."}' }],
+                  parts: [
+                    {
+                      text: '{"serverId":"unknown-node","dnsAddress":"1.1.1.1","routingMode":"Bypass LAN","reason":"Not in list."}',
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    await expect(generateServerRecommendation(request, false)).resolves.toHaveProperty("error");
+  });
+
+  it("rejects DNS or routing suggestions outside the supported presets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: '{"serverId":"public-node","dnsAddress":"https://resolver.example","routingMode":"Global","reason":"Invalid DNS suggestion."}',
+                    },
+                  ],
                 },
               },
             ],

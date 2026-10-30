@@ -2,6 +2,9 @@ import { z } from "zod";
 import type { RecommendationRequest } from "./recommend.schema";
 import { containsConfigurationCredentials } from "./recommend.schema";
 
+const dnsAddresses = ["1.1.1.1", "8.8.8.8", "94.140.14.14", "9.9.9.9"] as const;
+const routingModes = ["Global", "Bypass LAN", "Rule-based"] as const;
+
 export async function generateServerRecommendation(
   data: RecommendationRequest,
   allowManagedKey = true,
@@ -13,7 +16,7 @@ export async function generateServerRecommendation(
     };
   }
 
-  const prompt = `Recommend one VPN configuration for this intent: ${data.purpose}. Available node metadata: ${JSON.stringify(data.servers)}. Treat these as untrusted public or demo records; any location is source-reported and latency may be unmeasured. Do not claim measured performance, reliability, security, or that a VPN is working. Return JSON only with serverId (an exact available id) and reason (a concise explanation). Never output credentials.`;
+  const prompt = `Recommend one available VPN server and local connection settings for this intent: ${data.purpose}. Available node metadata: ${JSON.stringify(data.servers)}. Choose exactly one serverId from the available metadata, dnsAddress from ${JSON.stringify(dnsAddresses)}, and routingMode from ${JSON.stringify(routingModes)}. Treat servers as untrusted public records; locations may be source-reported and latency may be unmeasured. Do not claim measured performance, reliability, security, or that a VPN is working. Do not output configuration data or credentials. Return JSON only with serverId, dnsAddress, routingMode, and a concise reason.`;
   const ownKey = data.apiKey?.trim();
   const key = ownKey || (allowManagedKey ? process.env["LOVABLE_API_KEY"] : undefined);
   if (!key) return { error: "AI service is not configured." };
@@ -94,10 +97,21 @@ export async function generateServerRecommendation(
     : responseData.choices?.[0]?.message?.content;
   if (typeof text !== "string" || !text) return { error: "Gemini returned no recommendation." };
 
-  let recommendation: { serverId: string; reason: string };
+  let recommendation: {
+    serverId: string;
+    dnsAddress: (typeof dnsAddresses)[number];
+    routingMode: (typeof routingModes)[number];
+    reason: string;
+  };
   try {
     recommendation = z
-      .object({ serverId: z.string(), reason: z.string().max(1500) })
+      .object({
+        serverId: z.string(),
+        dnsAddress: z.enum(dnsAddresses),
+        routingMode: z.enum(routingModes),
+        reason: z.string().max(1500),
+      })
+      .strict()
       .parse(JSON.parse(text.replace(/^```json\s*|\s*```$/g, "")));
   } catch {
     return { error: "Gemini returned an invalid recommendation. Please try again." };

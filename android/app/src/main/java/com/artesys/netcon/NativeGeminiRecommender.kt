@@ -3,13 +3,22 @@ package com.artesys.netcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
 internal object NativeGeminiRecommender {
-    data class Recommendation(val nodeId: String, val reason: String)
+    data class Recommendation(
+        val nodeId: String,
+        val reason: String,
+        val dnsAddress: String,
+        val routingMode: String,
+    )
+
+    private val allowedDnsAddresses = setOf("1.1.1.1", "8.8.8.8", "94.140.14.14", "9.9.9.9")
+    private val allowedRoutingModes = setOf("Global", "Bypass LAN", "Rule-based")
 
     suspend fun recommend(
         purpose: String,
@@ -67,16 +76,43 @@ internal object NativeGeminiRecommender {
                     text
                 }.orEmpty()
                 if (status == 401 || status == 403) throw NativeSupabaseAuth.SessionExpiredException()
-                val response = JSONObject(responseText)
                 if (status !in 200..299) {
-                    throw IllegalStateException(response.optString("error").ifBlank { "Recommendation request failed with HTTP $status." })
+                    val errorMessage = try {
+                        JSONObject(responseText).optString("error")
+                    } catch (_: JSONException) {
+                        ""
+                    }
+                    throw IllegalStateException(
+                        errorMessage.ifBlank { "Recommendation service is unavailable (HTTP $status)." },
+                    )
                 }
-                val nodeId = response.optString("serverId")
-                val reason = response.optString("reason").take(500)
-                require(available.any { it.id == nodeId }) { "Gemini selected a server outside the available list." }
-                Recommendation(nodeId, reason.ifBlank { "Recommended from the available server metadata." })
+                parseRecommendation(responseText, available)
             } finally {
                 connection.disconnect()
             }
         }
+
+    internal fun parseRecommendation(
+        responseText: String,
+        available: List<NativePublicDirectory.Node>,
+    ): Recommendation {
+        val response = try {
+            JSONObject(responseText)
+        } catch (error: JSONException) {
+            throw IllegalStateException("Recommendation service returned an invalid response.", error)
+        }
+        val nodeId = response.optString("serverId")
+        val reason = response.optString("reason").take(500)
+        val dnsAddress = response.optString("dnsAddress")
+        val routingMode = response.optString("routingMode")
+        require(available.any { it.id == nodeId }) { "Gemini selected a server outside the available list." }
+        require(dnsAddress in allowedDnsAddresses) { "Gemini returned an unsupported DNS setting." }
+        require(routingMode in allowedRoutingModes) { "Gemini returned an unsupported routing setting." }
+        return Recommendation(
+            nodeId,
+            reason.ifBlank { "Recommended from the available server metadata." },
+            dnsAddress,
+            routingMode,
+        )
+    }
 }
