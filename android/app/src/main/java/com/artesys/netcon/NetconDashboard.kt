@@ -95,10 +95,6 @@ private enum class DashboardTab(val label: String) {
 internal fun NetconDashboard(
     serverName: String,
     protocol: String,
-    serverLocation: String,
-    serverLatitude: Double?,
-    serverLongitude: Double?,
-    onSaveLocation: (String, Double, Double) -> Unit,
     feedback: String,
     onFeedbackDismiss: () -> Unit,
     onImport: (String) -> Boolean,
@@ -121,7 +117,6 @@ internal fun NetconDashboard(
     }
     var tab by rememberSaveable { mutableStateOf(DashboardTab.Connection) }
     var serverDialog by rememberSaveable { mutableStateOf(false) }
-    var locationDialog by rememberSaveable { mutableStateOf(false) }
     var purpose by rememberSaveable { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var recommendationMessage by remember { mutableStateOf("") }
@@ -243,9 +238,6 @@ internal fun NetconDashboard(
                         onAskGemini = ::askGemini,
                         serverName = serverName,
                         protocol = protocol,
-                        serverLocation = serverLocation,
-                        serverLatitude = serverLatitude,
-                        serverLongitude = serverLongitude,
                         state = vpnStatus.state,
                         error = if (errorState) vpnStatus.error else feedback,
                         duration = duration,
@@ -254,7 +246,6 @@ internal fun NetconDashboard(
                         downloadMbps = downloadMbps,
                         uploadMbps = uploadMbps,
                         onOpenServers = { serverDialog = true },
-                        onSetLocation = { locationDialog = true },
                         onImport = { raw -> if (onImport(raw)) serverDialog = false },
                         onProtocolAllowed = { enabledProtocols.contains(protocol.lowercase(Locale.ROOT)) },
                         onConnect = onConnect,
@@ -303,19 +294,6 @@ internal fun NetconDashboard(
             },
             onImport = { raw ->
                 if (onImport(raw)) serverDialog = false
-            },
-        )
-    }
-
-    if (locationDialog) {
-        LocationDialog(
-            initialName = serverLocation,
-            initialLatitude = serverLatitude,
-            initialLongitude = serverLongitude,
-            onDismiss = { locationDialog = false },
-            onSave = { name, latitude, longitude ->
-                onSaveLocation(name, latitude, longitude)
-                locationDialog = false
             },
         )
     }
@@ -407,9 +385,6 @@ private fun ConnectionScreen(
     onAskGemini: () -> Unit,
     serverName: String,
     protocol: String,
-    serverLocation: String,
-    serverLatitude: Double?,
-    serverLongitude: Double?,
     state: String,
     error: String,
     duration: String,
@@ -420,7 +395,6 @@ private fun ConnectionScreen(
     onProtocolAllowed: () -> Boolean,
     onStartConfigured: () -> Unit,
     onOpenServers: () -> Unit,
-    onSetLocation: () -> Unit,
     onImport: (String) -> Unit,
     onConnect: () -> Unit,
     onCopyLog: () -> Unit,
@@ -518,13 +492,6 @@ private fun ConnectionScreen(
                     modifier = Modifier.border(1.dp, CopperDark, RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 3.dp))
             }
         }
-
-        WorldMapPanel(
-            locationName = serverLocation,
-            latitude = serverLatitude,
-            longitude = serverLongitude,
-            onSetLocation = onSetLocation,
-        )
 
         MetalPanel {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -769,121 +736,6 @@ private fun PublicServerDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Keycap("CANCEL", Modifier.weight(1f), onClick = onDismiss)
                 CopperButton("IMPORT LOCALLY", Modifier.weight(1f)) { onImport(raw.trim()) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WorldMapPanel(
-    locationName: String,
-    latitude: Double?,
-    longitude: Double?,
-    onSetLocation: () -> Unit,
-) {
-    MetalPanel {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle("ACTIVE SERVER LOCATION")
-                Text("EDIT", color = CopperDark, fontSize = 8.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.clickable(onClick = onSetLocation))
-            }
-            Canvas(
-                Modifier.fillMaxWidth().height(164.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF252A30), Color(0xFF111519))))
-                    .border(1.dp, Shadow, RoundedCornerShape(4.dp)),
-            ) {
-                val mapColor = Color(0xFF5E6A70)
-                for (index in 1..5) {
-                    val x = size.width * index / 6f
-                    drawLine(Bevel.copy(alpha = 0.45f), Offset(x, 0f), Offset(x, size.height), strokeWidth = 0.6.dp.toPx())
-                }
-                for (index in 1..3) {
-                    val y = size.height * index / 4f
-                    drawLine(Bevel.copy(alpha = 0.45f), Offset(0f, y), Offset(size.width, y), strokeWidth = 0.6.dp.toPx())
-                }
-                val landmasses = listOf(
-                    listOf(.06f to .22f, .10f to .14f, .18f to .17f, .23f to .24f, .21f to .31f, .17f to .36f, .15f to .45f, .11f to .43f, .09f to .35f, .06f to .32f),
-                    listOf(.23f to .47f, .28f to .49f, .32f to .58f, .31f to .67f, .29f to .78f, .27f to .88f, .24f to .81f, .23f to .69f, .21f to .58f),
-                    listOf(.43f to .28f, .47f to .23f, .52f to .25f, .55f to .31f, .52f to .38f, .49f to .39f, .47f to .35f),
-                    listOf(.48f to .39f, .54f to .39f, .58f to .46f, .56f to .57f, .53f to .69f, .50f to .65f, .48f to .55f, .46f to .47f),
-                    listOf(.53f to .22f, .59f to .15f, .69f to .16f, .78f to .22f, .88f to .24f, .92f to .31f, .86f to .37f, .79f to .34f, .74f to .40f, .66f to .36f, .61f to .31f, .56f to .34f),
-                    listOf(.76f to .57f, .82f to .55f, .87f to .59f, .85f to .65f, .80f to .67f, .76f to .63f),
-                )
-                landmasses.forEach { points ->
-                    val path = Path().apply {
-                        points.forEachIndexed { index, point ->
-                            val x = size.width * point.first
-                            val y = size.height * point.second
-                            if (index == 0) moveTo(x, y) else lineTo(x, y)
-                        }
-                        close()
-                    }
-                    drawPath(path, Brush.verticalGradient(listOf(mapColor, Color(0xFF3D494F))))
-                    drawPath(path, CopperLight.copy(alpha = 0.22f), style = Stroke(width = 0.8.dp.toPx()))
-                }
-                if (latitude != null && longitude != null) {
-                    val x = size.width * ((longitude + 180.0) / 360.0).toFloat()
-                    val y = size.height * ((90.0 - latitude) / 180.0).toFloat()
-                    drawCircle(Copper.copy(alpha = 0.22f), radius = 13.dp.toPx(), center = Offset(x, y))
-                    drawCircle(CopperLight, radius = 5.dp.toPx(), center = Offset(x, y))
-                    drawCircle(DeepInk, radius = 2.dp.toPx(), center = Offset(x, y))
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(locationName.ifBlank { "LOCATION NOT PROVIDED" }, color = Engrave, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    val coordinates = if (latitude != null && longitude != null) {
-                        "%.4f°, %.4f°".format(latitude, longitude)
-                    } else {
-                        "No verified coordinates"
-                    }
-                    Text(coordinates, color = Engrave, fontFamily = FontFamily.Monospace, fontSize = 8.sp)
-                }
-                Icon(Icons.Filled.Dns, contentDescription = null, tint = CopperDark, modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun LocationDialog(
-    initialName: String,
-    initialLatitude: Double?,
-    initialLongitude: Double?,
-    onDismiss: () -> Unit,
-    onSave: (String, Double, Double) -> Unit,
-) {
-    var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
-    var latitude by rememberSaveable(initialLatitude) { mutableStateOf(initialLatitude?.toString().orEmpty()) }
-    var longitude by rememberSaveable(initialLongitude) { mutableStateOf(initialLongitude?.toString().orEmpty()) }
-    var error by rememberSaveable { mutableStateOf("") }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFFADB3B9), Color(0xFF626A72), Color(0xFF383D43))))
-                .border(1.dp, Bevel, RoundedCornerShape(7.dp)).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("SERVER MAP LOCATION", color = Engrave, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text("Enter the location and coordinates reported by your server provider. These values stay on this device.", color = Engrave, fontSize = 10.sp)
-            RecessedInput(name, { name = it }, "Location name, e.g. Frankfurt, Germany")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RecessedInput(latitude, { latitude = it }, "Latitude", Modifier.weight(1f))
-                RecessedInput(longitude, { longitude = it }, "Longitude", Modifier.weight(1f))
-            }
-            if (error.isNotBlank()) Text(error, color = Offline, fontSize = 10.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Keycap("CANCEL", Modifier.weight(1f), onClick = onDismiss)
-                CopperButton("SAVE LOCATION", Modifier.weight(1f)) {
-                    val lat = latitude.toDoubleOrNull()
-                    val lon = longitude.toDoubleOrNull()
-                    if (name.isBlank() || lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-                        error = "Enter a name and valid latitude/longitude."
-                    } else {
-                        onSave(name.trim(), lat, lon)
-                    }
-                }
             }
         }
     }

@@ -25,9 +25,6 @@ class MainActivity : ComponentActivity() {
     private val preferences by lazy { getPreferences(MODE_PRIVATE) }
     private var savedConfig by mutableStateOf("")
     private var savedName by mutableStateOf("")
-    private var serverLocation by mutableStateOf("")
-    private var serverLatitude by mutableStateOf<Double?>(null)
-    private var serverLongitude by mutableStateOf<Double?>(null)
     private var feedback by mutableStateOf("")
     private var pendingConfig = ""
 
@@ -40,9 +37,6 @@ class MainActivity : ComponentActivity() {
             View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         savedConfig = preferences.getString("xray_config", "") ?: ""
         savedName = preferences.getString("server_name", "") ?: ""
-        serverLocation = preferences.getString("server_location", "") ?: ""
-        serverLatitude = preferences.getString("server_latitude", null)?.toDoubleOrNull()
-        serverLongitude = preferences.getString("server_longitude", null)?.toDoubleOrNull()
         setContent {
             val permissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.StartActivityForResult(),
@@ -80,19 +74,6 @@ class MainActivity : ComponentActivity() {
             NetconDashboard(
                 serverName = savedName,
                 protocol = protocolName(savedConfig),
-                serverLocation = serverLocation,
-                serverLatitude = serverLatitude,
-                serverLongitude = serverLongitude,
-                onSaveLocation = { name, latitude, longitude ->
-                    serverLocation = name
-                    serverLatitude = latitude
-                    serverLongitude = longitude
-                    preferences.edit()
-                        .putString("server_location", name)
-                        .putString("server_latitude", latitude.toString())
-                        .putString("server_longitude", longitude.toString())
-                        .apply()
-                },
                 feedback = feedback,
                 onFeedbackDismiss = { feedback = "" },
                 onImport = ::importConfiguration,
@@ -167,7 +148,7 @@ class MainActivity : ComponentActivity() {
     private fun importConfiguration(raw: String): Boolean {
         return try {
             val imported = NativeXrayConfig.fromInput(raw)
-            saveServer(imported.config.toString(), imported.name, "")
+            saveServer(imported.config.toString(), imported.name)
             NetconVpnService.logDiagnostic("Configuration imported successfully")
             feedback = "Configuration saved on this device."
             true
@@ -179,21 +160,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun selectPublicNode(node: NativePublicDirectory.Node) {
-        val country = node.countryCode?.let { "${node.country} · source-reported" }.orEmpty()
-        saveServer(node.configJson, node.name, country)
+        saveServer(node.configJson, node.name)
         feedback = "Free public server imported. It is untrusted and has not been tested."
     }
 
-    private fun saveServer(config: String, name: String, location: String) {
+    private fun saveServer(config: String, name: String) {
         savedConfig = config
         savedName = name
-        serverLocation = location
-        serverLatitude = null
-        serverLongitude = null
         preferences.edit()
             .putString("xray_config", savedConfig)
             .putString("server_name", savedName)
-            .putString("server_location", serverLocation)
+            .remove("server_location")
             .remove("server_latitude")
             .remove("server_longitude")
             .apply()
