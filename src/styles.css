@@ -59,11 +59,11 @@ button, input, select, textarea { font: inherit; } button { -webkit-tap-highligh
 .outer-brand, .below-chassis { position: relative; max-width: 904px; margin: 0 auto; display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); color: var(--muted-foreground); }
 .outer-brand { margin-bottom: 23px; font-size: 13px; font-weight: 500; }
 .brand-heading { width: auto !important; margin: 0; color: inherit; text-shadow: none; line-height: 1; }
-.brand-card { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 18px 8px 9px; border: 1px solid transparent; border-radius: 14px; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #f0d7c5, #e5dcf7, #d2e9f3, #d5ecdf, #f2e7c9) border-box; box-shadow: 0 5px 16px color-mix(in oklch, var(--deep-ink) 10%, transparent); animation: brand-card-glow 4.8s ease-in-out infinite; }
+.brand-card { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 22px 12px 12px; border: 1px solid transparent; border-radius: 14px; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #f0d7c5, #e5dcf7, #d2e9f3, #d5ecdf, #f2e7c9) border-box; box-shadow: 0 5px 16px color-mix(in oklch, var(--deep-ink) 10%, transparent); animation: brand-card-glow 4.8s ease-in-out infinite; }
 .brand-card::before { position: absolute; z-index: -1; inset: -5px; border-radius: inherit; background: linear-gradient(110deg, #e9c9ae, #d8cdf0, #bfdfeb, #c4e5d4, #e9d9ab); content: ''; filter: blur(11px); opacity: .38; animation: brand-card-aura 4.8s ease-in-out infinite; }
-.brand-card-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; background: linear-gradient(145deg, #fff8f1, #f2efff 54%, #edf8fa); color: var(--engrave-copper); }
-.brand-card-icon svg { width: 21px; height: 21px; stroke-width: 2; }
-.brand-card-name { color: var(--engrave-ink); font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: -.04em; }
+.brand-card-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 12px; background: linear-gradient(145deg, #fff8f1, #f2efff 54%, #edf8fa); color: var(--engrave-copper); }
+.brand-card-icon svg { width: 25px; height: 25px; stroke-width: 2; }
+.brand-card-name { color: var(--engrave-ink); font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -.04em; }
 .brand-card.compact { min-height: 44px; gap: 8px; padding: 5px 12px 5px 6px; border-radius: 11px; }
 .brand-card.compact .brand-card-icon { width: 30px; height: 30px; border-radius: 8px; }
 .brand-card.compact .brand-card-icon svg { width: 17px; height: 17px; }
@@ -165,9 +165,10 @@ h1 { font-weight: 800; font-size: 29px; color: var(--engrave-copper); text-shado
 .welcome-skip, .welcome-back { color: white; }
 .welcome-skip:hover, .welcome-back:hover { color: white; }
 @media (max-width: 700px) {
-  .brand-card { min-height: 49px; gap: 9px; padding: 6px 13px 6px 7px; border-radius: 12px; }
-  .brand-card-icon { width: 34px; height: 34px; border-radius: 9px; }
-  .brand-card-name { font-size: 21px; }
+  .brand-card { min-height: 66px; gap: 12px; padding: 9px 18px 9px 10px; border-radius: 13px; }
+  .brand-card-icon { width: 44px; height: 44px; border-radius: 11px; }
+  .brand-card-icon svg { width: 24px; height: 24px; }
+  .brand-card-name { font-size: 28px; }
   .welcome-header .brand-card { min-height: 42px; }
   .welcome-header .brand-card-icon { width: 28px; height: 28px; }
   .welcome-header .brand-card-name { font-size: 18px; }
