@@ -58,8 +58,10 @@ button, input, select, textarea { font: inherit; } button { -webkit-tap-highligh
 .ambient-metal { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .07; pointer-events: none; }
 .outer-brand, .below-chassis { position: relative; max-width: 904px; margin: 0 auto; display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); color: var(--muted-foreground); }
 .outer-brand { margin-bottom: 23px; font-size: 13px; font-weight: 500; }
-.brand-heading { width: auto !important; margin: 0; color: inherit; text-shadow: none; line-height: 1; }
-.brand-card { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 22px 12px 12px; border: 1px solid transparent; border-radius: 14px; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #f0d7c5, #e5dcf7, #d2e9f3, #d5ecdf, #f2e7c9) border-box; box-shadow: 0 5px 16px color-mix(in oklch, var(--deep-ink) 10%, transparent); animation: brand-card-glow 4.8s ease-in-out infinite; }
+.brand-heading { width: 100% !important; min-width: 0; margin: 0; color: inherit; text-shadow: none; line-height: 1; }
+.brand-card { position: relative; isolation: isolate; display: flex; width: 100%; align-items: center; gap: 12px; min-height: 72px; padding: 12px 22px 12px 12px; border: 1px solid transparent; border-radius: 14px; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #f0d7c5, #e5dcf7, #d2e9f3, #d5ecdf, #f2e7c9) border-box; box-shadow: 0 5px 16px color-mix(in oklch, var(--deep-ink) 10%, transparent); animation: brand-card-glow 5.8s ease-in-out infinite; }
+.brand-card::after { position: absolute; z-index: -2; inset: -10px; border: 1px solid color-mix(in oklch, #d9c5eb 55%, transparent); border-radius: 24px; content: ''; opacity: 0; transform: scale(.94); animation: brand-card-wave 5.8s ease-out infinite; pointer-events: none; }
+.brand-card.compact::after { border-radius: 21px; }
 .brand-card::before { position: absolute; z-index: -1; inset: -5px; border-radius: inherit; background: linear-gradient(110deg, #e9c9ae, #d8cdf0, #bfdfeb, #c4e5d4, #e9d9ab); content: ''; filter: blur(11px); opacity: .38; animation: brand-card-aura 4.8s ease-in-out infinite; }
 .brand-card-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 12px; background: linear-gradient(145deg, #fff8f1, #f2efff 54%, #edf8fa); color: var(--engrave-copper); }
 .brand-card-icon svg { width: 25px; height: 25px; stroke-width: 2; }
@@ -70,6 +72,8 @@ button, input, select, textarea { font: inherit; } button { -webkit-tap-highligh
 .brand-card.compact .brand-card-name { font-size: 19px; }
 @keyframes brand-card-glow { 50% { box-shadow: 0 6px 22px color-mix(in oklch, #d9c5eb 30%, transparent); } }
 @keyframes brand-card-aura { 50% { opacity: .68; transform: scale(1.025); } }
+@keyframes brand-card-wave { 0%, 55% { opacity: 0; transform: scale(.94); } 63% { opacity: .42; } 82%, 100% { opacity: 0; transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .brand-card, .brand-card::before, .brand-card::after { animation: none; } }
 .brand-mark { display: grid; place-items: center; color: var(--primary); width: 31px; height: 31px; border: 1px solid var(--copper-bevel); border-radius: 5px; background: var(--shadow); }
 .outer-brand-rule { height: 1px; flex: 1; background: var(--border); opacity: .5; }
 .micro-label { font-family: var(--font-mono); font-size: 9px; font-weight: 400; color: var(--muted-foreground); }
