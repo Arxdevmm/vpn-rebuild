@@ -460,5 +460,199 @@ h1 { font-weight: 800; font-size: 29px; color: var(--engrave-copper); text-shado
  .language-my .setting-row > div:first-child { min-width: 0; flex: 1 1 190px; }
  .language-my .welcome-title { font-size: 23px; margin-block: 8px; }
  .language-my .welcome-description { font-size: 11px; }
- .language-my .welcome-copy { padding-inline: 22px; }
+  .language-my .welcome-copy { padding-inline: 22px; }
 }
+
+:root {
+  --app-max-width: 1180px;
+  --app-page-gutter: clamp(8px, 3vw, 40px);
+  --app-section-gap: clamp(14px, 1.8vw, 24px);
+}
+
+body { overflow-x: hidden; }
+.client-stage {
+  min-height: 100svh;
+  padding-top: calc(clamp(16px, 3vw, 40px) + env(safe-area-inset-top));
+  padding-right: max(var(--app-page-gutter), env(safe-area-inset-right));
+  padding-bottom: 32px;
+  padding-left: max(var(--app-page-gutter), env(safe-area-inset-left));
+}
+.client-chassis, .outer-brand, .below-chassis, .settings-dashboard, .language-selection {
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+}
+.client-chassis {
+  padding: clamp(22px, 3vw, 38px) clamp(14px, 3vw, 40px) 0;
+  border-radius: 16px;
+}
+.client-header {
+  gap: clamp(12px, 2vw, 22px);
+  padding: clamp(8px, 1.7vw, 18px) 0 clamp(18px, 2.2vw, 28px);
+}
+.client-identity { width: 100%; min-width: 0; justify-content: center; }
+.client-header .brand-heading { display: flex; justify-content: center; width: 100% !important; min-width: 0; }
+.brand-card {
+  width: fit-content;
+  min-height: 0;
+  gap: 0;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+.brand-card::before, .brand-card::after { content: none; }
+.brand-card-logo {
+  display: block;
+  width: clamp(250px, 26vw, 340px);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-card.compact {
+  width: fit-content;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.brand-card.compact .brand-card-logo { width: clamp(124px, 35vw, 164px); }
+.welcome-header .brand-card { flex: 0 0 auto; }
+@keyframes brand-card-glow { 50% { box-shadow: 0 6px 22px color-mix(in oklch, var(--primary) 24%, transparent); } }
+@keyframes brand-card-aura { 50% { opacity: .48; transform: scale(1.025); } }
+.connection-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-section-gap);
+}
+.connection-main { display: grid; min-width: 0; align-content: start; gap: var(--app-section-gap); }
+.connection-side { min-width: 0; }
+.server-summary { display: grid; min-width: 0; gap: 8px; }
+.server-summary .section-heading { margin: 0 2px; }
+.connection-side > .control-deck { margin-top: 0; }
+.connection-content > .telemetry-strip, .connection-content > .connection-footer { grid-column: 1 / -1; }
+.connection-content > .telemetry-strip { margin-top: 0; }
+.connection-content > .connection-footer { margin: 0 2px 8px; flex-wrap: wrap; row-gap: 10px; }
+.control-deck .instrument-grid { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1fr); gap: clamp(8px, 1.4vw, 16px); }
+.power-housing { width: clamp(112px, 12vw, 150px); height: auto; aspect-ratio: .89; }
+.power-button .power-bolt { width: clamp(38px, 4vw, 55px); height: clamp(38px, 4vw, 55px); }
+.tab-content { display: grid; min-height: 0; gap: var(--app-section-gap); }
+.tab-content > .section-heading { margin: 0 2px; }
+.settings-tray { padding: 4px clamp(14px, 2vw, 22px) 18px; }
+.setting-row { flex-wrap: wrap; align-items: flex-start; gap: clamp(12px, 2vw, 18px); padding-block: clamp(14px, 1.8vw, 20px); }
+.setting-row > div:first-child { flex: 1 1 240px; min-width: 0; }
+.setting-row > button { max-width: 100%; min-height: 42px; white-space: normal; }
+.setting-select { width: clamp(180px, 24vw, 260px); max-width: 100%; }
+.protocol-switch-bank { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: clamp(8px, 1.6vw, 18px); }
+.protocol-switch-unit { min-width: 0; }
+.proxy-ports { flex-wrap: wrap; justify-content: flex-start; column-gap: clamp(12px, 2vw, 24px); row-gap: 10px; }
+.export-section { flex-wrap: wrap; margin-block: 0; }
+.export-section > button { flex: 1 1 200px; min-height: 44px; height: auto; white-space: normal; }
+.diagnostics { gap: 12px; }
+.diagnostic-row { flex-wrap: wrap; gap: 12px; }
+.diagnostic-row > span { flex: 1 1 150px; }
+.diagnostic-row strong { max-width: none; flex: 1 1 220px; overflow-wrap: anywhere; }
+.privacy-panel { align-items: flex-start; gap: clamp(14px, 2vw, 22px); padding: clamp(16px, 3vw, 24px); }
+.server-dialog {
+  box-sizing: border-box;
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(90dvh, 860px);
+  padding: clamp(16px, 3vw, 28px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.server-list-row { min-width: 0; }
+.node-choice { min-width: 0; }
+.welcome-screen {
+  width: min(calc(100vw - 24px), 520px);
+  max-width: 520px;
+  height: min(calc(100dvh - 24px), 900px);
+  border-radius: 16px;
+}
+.language-selection { gap: clamp(8px, 2vw, 14px); padding-inline: 12px; }
+.language-pill { max-width: 100%; flex-wrap: wrap; justify-content: center; }
+.language-option { min-width: min(106px, 40vw); }
+.settings-dashboard { margin-top: clamp(18px, 3vw, 28px); }
+.dashboard-toggle { min-height: 48px; }
+.dashboard-section-trigger { min-height: 48px; }
+
+@media (min-width: 1180px) {
+  .connection-content { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); align-items: start; }
+}
+
+@media (max-width: 700px) {
+  .client-stage {
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: 24px;
+    padding-left: max(8px, env(safe-area-inset-left));
+  }
+  .client-chassis { padding: 22px clamp(12px, 3.5vw, 18px) 0; border-radius: 14px; }
+  .brand-card { padding: 0; }
+  .brand-card-logo { width: clamp(190px, 55vw, 270px); }
+  .brand-card.compact { padding: 0; }
+  .brand-card.compact .brand-card-logo { width: clamp(124px, 35vw, 164px); }
+  .welcome-header .brand-card { min-height: 0; }
+  .status-badge { min-width: clamp(140px, 42vw, 180px); padding: 9px 18px; font-size: clamp(13px, 3.6vw, 16px); }
+  .instrument-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 4px; margin-bottom: 0; }
+  .nav-key { min-width: 0; height: clamp(48px, 13vw, 56px); padding-inline: 4px; font-size: clamp(11px, 3.4vw, 14px); }
+  .connection-content { gap: 16px; }
+  .connection-main { gap: 16px; }
+  .ai-tray { padding: clamp(18px, 4vw, 24px) clamp(12px, 3.5vw, 18px) 16px; }
+  .quick-actions { gap: 8px; }
+  .quick-chip { min-height: 36px; height: auto; padding-block: 7px; font-size: clamp(10px, 2.9vw, 12px); white-space: normal; }
+  .active-server { height: auto; min-height: 78px; padding: 12px; gap: 10px; }
+  .control-deck { padding: 22px 10px 0; }
+  .control-deck .deck-heading { align-items: flex-start; gap: 8px; }
+  .control-deck .deck-heading .micro-label { font-size: 8px; line-height: 1.5; }
+  .control-deck .deck-heading > span:last-child { max-width: 46%; font-size: 7px; text-align: right; }
+  .control-deck .instrument-grid { margin: 16px 0 0; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1fr); gap: 4px; }
+  .control-deck .instrument-label { margin-top: 0; font-size: 8px; }
+  .control-deck .power-state { margin-top: 11px; font-size: 7px; line-height: 1.45; text-align: center; }
+  .power-housing { width: clamp(74px, 22vw, 108px); height: auto; padding: 7px; }
+  .power-button .power-bolt { width: clamp(30px, 9.5vw, 40px); height: clamp(30px, 9.5vw, 40px); }
+  .connection-state-line { flex-wrap: wrap; gap: 7px; font-size: 9px; }
+  .telemetry-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 0; padding: 14px 0; }
+  .telemetry-strip > div { min-width: 0; padding-inline: clamp(8px, 3vw, 16px); }
+  .telemetry-strip > div > span { font-size: 8px; }
+  .telemetry-strip strong { gap: 5px; font-size: clamp(17px, 5vw, 21px); }
+  .connection-footer { justify-content: flex-start; font-size: 8px; }
+  .tab-content { gap: 16px; }
+  .setting-row > div:first-child { flex-basis: 100%; }
+  .setting-row .setting-select { width: 100%; }
+  .protocol-switch-bank { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-inline: 8px; }
+  .protocol-switch-unit > span, .switch-readout { font-size: 8px; }
+  .diagnostic-row { padding: 16px 18px; }
+  .diagnostic-row > span, .diagnostic-row strong { flex-basis: 100%; text-align: left; }
+  .language-selection { font-size: 12px; }
+  .dashboard-section-trigger { padding: 14px 12px; }
+}
+
+@media (max-width: 480px) {
+  .welcome-screen { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
+  .welcome-header { padding: max(16px, env(safe-area-inset-top)) 20px 0; }
+  .welcome-copy { padding-inline: 22px; }
+  .welcome-footer { padding: 12px 20px max(18px, env(safe-area-inset-bottom)); }
+  .server-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 18px; }
+  .import-options, .manual-fields { grid-template-columns: 1fr; }
+  .proxy-ports { justify-content: space-between; }
+}
+
+@media (max-width: 360px) {
+  .brand-card-logo { width: 160px; }
+  .client-chassis { padding-inline: 10px; }
+  .nav-key { font-size: 10px; }
+  .power-housing { width: 72px; }
+  .connection-footer { gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-card, .brand-card::before, .brand-card::after { animation: none; }
+}
+
