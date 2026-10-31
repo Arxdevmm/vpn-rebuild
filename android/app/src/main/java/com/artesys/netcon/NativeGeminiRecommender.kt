@@ -8,6 +8,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 internal object NativeGeminiRecommender {
     data class Recommendation(
@@ -19,6 +20,12 @@ internal object NativeGeminiRecommender {
 
     private val allowedDnsAddresses = setOf("1.1.1.1", "8.8.8.8", "94.140.14.14", "9.9.9.9")
     private val allowedRoutingModes = setOf("Global", "Bypass LAN", "Rule-based")
+
+    internal fun filterEnabledNodes(
+        nodes: List<NativePublicDirectory.Node>,
+        enabledProtocols: Set<String>,
+    ): List<NativePublicDirectory.Node> =
+        nodes.filter { it.protocol.lowercase(Locale.ROOT) in enabledProtocols }.take(30)
 
     suspend fun recommend(
         purpose: String,

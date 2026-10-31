@@ -2,6 +2,7 @@ package com.artesys.netcon
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NativeGeminiRecommenderTest {
@@ -24,6 +25,30 @@ class NativeGeminiRecommenderTest {
         assertEquals("public-node", recommendation.nodeId)
         assertEquals("1.1.1.1", recommendation.dnsAddress)
         assertEquals("Bypass LAN", recommendation.routingMode)
+    }
+
+    @Test
+    fun filtersRecommendationsToEnabledProtocolsAndCapsTheList() {
+        val nodes = (1..35).map { index ->
+            node.copy(
+                id = "node-$index",
+                protocol = if (index % 2 == 0) "vless" else "trojan",
+            )
+        }
+
+        val available = NativeGeminiRecommender.filterEnabledNodes(nodes, setOf("vless"))
+
+        assertEquals(17, available.size)
+        assertTrue(available.all { it.protocol == "vless" })
+    }
+
+    @Test
+    fun capsEnabledRecommendationNodesAtThirty() {
+        val nodes = (1..40).map { index -> node.copy(id = "node-$index", protocol = "vless") }
+
+        val available = NativeGeminiRecommender.filterEnabledNodes(nodes, setOf("vless"))
+
+        assertEquals(30, available.size)
     }
 
     @Test

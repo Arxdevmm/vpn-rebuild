@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dns
@@ -169,12 +170,21 @@ internal fun NetconDashboard(
             try {
                 val result = withTimeout(25_000) { onFetchPublicNodes("") }
                 if (result.nodes.isEmpty()) throw IllegalStateException("No supported public servers were found in the top feed.")
-                recommendationMessage = "Asking Gemini to choose from ${minOf(result.nodes.size, 30)} of ${result.nodes.size} untrusted public servers…"
-                val recommendation = withTimeout(25_000) {
-                    onRecommend(purpose.trim(), apiKey, result.nodes)
+                val availableNodes = NativeGeminiRecommender.filterEnabledNodes(result.nodes, enabledProtocols)
+                if (availableNodes.isEmpty()) {
+                    throw IllegalStateException("Enable at least one server protocol in CONFIG before asking Gemini.")
                 }
-                val selected = result.nodes.firstOrNull { it.id == recommendation.nodeId }
+                recommendationMessage = "Asking Gemini to choose from ${availableNodes.size} enabled, untrusted public servers…"
+                val recommendation = withTimeout(25_000) {
+                    onRecommend(purpose.trim(), apiKey, availableNodes)
+                }
+                val selected = availableNodes.firstOrNull { it.id == recommendation.nodeId }
                     ?: throw IllegalStateException("Gemini selected a server outside the downloaded list.")
+                if (selected.protocol !in enabledProtocols) {
+                    throw IllegalStateException(
+                        "The recommended protocol was disabled during the request. Enable it in CONFIG and try again.",
+                    )
+                }
                 onSelectPublicNode(selected)
                 dns = recommendation.dnsAddress
                 route = recommendation.routingMode
@@ -377,8 +387,8 @@ private fun BrandPlate() {
 
     Box(
         modifier = Modifier
-            .fillMaxWidth(0.92f)
-            .height(72.dp),
+            .fillMaxWidth()
+            .height(66.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -403,25 +413,25 @@ private fun BrandPlate() {
                 .background(brandGradient)
                 .padding(1.dp)
                 .clip(plateShape)
-                .background(Brush.linearGradient(listOf(Color.White, Color(0xFFF2ECFA), Color(0xFFEAF6F2))))
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .background(Tray)
+                .padding(horizontal = 10.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.Start,
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(11.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFFFFF8F1), Color(0xFFF2EFFF), Color(0xFFEDF8FA)))),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Star, contentDescription = null, tint = CopperDark, modifier = Modifier.size(25.dp))
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = CopperDark, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(12.dp))
             Text(
                 "AIV2Ray",
                 color = Engrave,
-                fontSize = 30.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
             )
         }
