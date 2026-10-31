@@ -487,8 +487,24 @@ body { overflow-x: hidden; }
   border-radius: 16px;
 }
 .client-header {
+  position: relative;
+  isolation: isolate;
   gap: clamp(12px, 2vw, 22px);
-  padding: clamp(8px, 1.7vw, 18px) 0 clamp(18px, 2.2vw, 28px);
+  padding: clamp(8px, 1.7vw, 18px) clamp(12px, 2vw, 22px) clamp(18px, 2.2vw, 28px);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in oklch, #f7c5d8 25%, transparent), transparent 42%),
+    radial-gradient(circle at 82% 16%, color-mix(in oklch, #b7d9ff 22%, transparent), transparent 44%),
+    linear-gradient(118deg, color-mix(in oklch, #efd7ff 18%, transparent), color-mix(in oklch, #bfeee5 16%, transparent) 48%, color-mix(in oklch, #ffe0b2 17%, transparent));
+  background-size: 140% 140%;
+  animation: client-header-pulse 3s ease-in-out infinite;
+}
+@keyframes client-header-pulse {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .client-header { animation: none; }
 }
 .client-identity { width: 100%; min-width: 0; justify-content: center; }
 .client-header .brand-heading { display: flex; justify-content: center; width: 100% !important; min-width: 0; }
@@ -507,9 +523,9 @@ body { overflow-x: hidden; }
 .brand-card::before, .brand-card::after { content: none; }
 .brand-card-logo {
   display: block;
-  width: clamp(250px, 26vw, 340px);
+  width: 450px;
   max-width: 100%;
-  height: auto;
+  height: 60px;
   aspect-ratio: auto;
   object-fit: contain;
   border-radius: 0;
